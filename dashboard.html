@@ -1,0 +1,1841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Footy Field Dashboard</title>
+<style>
+  :root {
+    --navy: #12294d;
+    --blue: #1e64d4;
+    --teal: #0b8f8f;
+    --orange: #e8641f;
+    --bg: #f6f7fb;
+    --card: #ffffff;
+    --border: #e2e5ec;
+    --text: #1c2333;
+    --muted: #667085;
+    --green: #1a8754;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding-bottom: 60px;
+  }
+  header {
+    background: var(--navy);
+    color: white;
+    padding: 20px 16px;
+  }
+  header h1 { margin: 0 0 4px; font-size: 20px; }
+  header p { margin: 0; opacity: 0.8; font-size: 13px; }
+
+  .controls {
+    max-width: 720px;
+    margin: -24px auto 0;
+    background: var(--card);
+    border-radius: 14px;
+    box-shadow: 0 6px 20px rgba(20,30,60,0.08);
+    padding: 16px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .controls select {
+    flex: 1;
+    min-width: 140px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    font-size: 14px;
+    background: white;
+  }
+
+  main { max-width: 720px; margin: 20px auto; padding: 0 16px; }
+
+  .status-card {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border);
+  }
+  .status-row { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+  .league-switcher { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .league-switcher select { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); font-size: 14px; }
+  .period-pill {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: var(--teal);
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .period-pill.estimate::after { content: " (estimated)"; font-weight: 400; opacity: 0.85; }
+  .muted { color: var(--muted); font-size: 13px; }
+
+  section.card {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 18px 20px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border);
+  }
+  section.card h2 {
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--blue);
+    margin: 0 0 12px;
+  }
+  section.card h3 { font-size: 14px; margin: 14px 0 6px; color: var(--navy); }
+  section.card ul { margin: 0 0 8px; padding-left: 20px; }
+  section.card li { margin-bottom: 6px; line-height: 1.45; font-size: 14.5px; }
+  section.card p { line-height: 1.5; font-size: 14.5px; margin: 0 0 8px; }
+
+  .todo-item {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14.5px;
+  }
+  .todo-item:last-child { border-bottom: none; }
+  .todo-item a { color: var(--blue); text-decoration: none; }
+  .todo-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .todo-due { color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+  .todo-main { display: flex; align-items: flex-start; gap: 10px; }
+  .todo-detail-toggle {
+    margin: 8px 0 0 30px; background: none; border: 1px solid var(--blue); color: var(--blue);
+    border-radius: 8px; padding: 4px 10px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  }
+  .todo-detail-panel { margin: 10px 0 0 30px; padding: 10px 12px; background: #f5f7fb; border-radius: 8px; font-size: 13.5px; line-height: 1.5; }
+  .todo-check {
+    width: 20px; height: 20px; margin-top: 1px; flex-shrink: 0; cursor: pointer;
+  }
+  .todo-title.checking { opacity: 0.5; text-decoration: line-through; }
+  .empty { color: var(--muted); font-size: 13.5px; font-style: italic; }
+
+  table.routing { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table.routing th, table.routing td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); }
+  table.routing th { color: var(--muted); font-weight: 600; }
+
+  .draft-flag {
+    background: #fff6e5;
+    border: 1px solid #f2d38c;
+    color: #7a5b00;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 12px;
+  }
+  .error-banner {
+    background: #fdeceb;
+    border: 1px solid #f2b4ae;
+    color: #8a2c22;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 13.5px;
+    margin-bottom: 16px;
+  }
+  footer { text-align: center; color: var(--muted); font-size: 12px; padding: 20px; }
+
+  /* ---- sign-in ---- */
+  .signin-card {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 24px 20px;
+    border: 1px solid var(--border);
+    max-width: 360px;
+    margin: 30px auto;
+  }
+  .signin-card h2 { font-size: 16px; margin: 0 0 4px; color: var(--navy); }
+  .signin-card p.hint { margin: 0 0 16px; }
+  .signin-card label { display: block; font-size: 12.5px; color: var(--muted); margin: 12px 0 4px; }
+  .signin-card input, .signin-card select {
+    width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 14px;
+  }
+  .signin-card button {
+    width: 100%; margin-top: 18px; padding: 11px; border: none; border-radius: 8px;
+    background: var(--blue); color: white; font-size: 14.5px; font-weight: 600; cursor: pointer;
+  }
+  .signin-card button:disabled { opacity: 0.6; cursor: default; }
+  .signin-error { color: #b3261e; font-size: 13px; margin-top: 10px; }
+  .signed-in-bar {
+    max-width: 720px; margin: 12px auto 0; padding: 0 16px;
+    display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--muted);
+  }
+  .signed-in-bar button {
+    border: none; background: none; color: var(--blue); font-size: 13px; cursor: pointer; text-decoration: underline;
+  }
+
+  /* ---- clock in/out ---- */
+  .clock-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .clock-status { font-size: 14.5px; }
+  .clock-status strong { color: var(--navy); }
+  .next-shift-line {
+    font-size: 16px; font-weight: 700; color: var(--navy);
+    background: #eaf1fd; border-radius: 10px; padding: 12px 14px;
+    margin-bottom: 14px;
+  }
+  .next-shift-line strong { color: var(--blue); }
+  .clock-btn {
+    padding: 10px 18px; border-radius: 999px; border: none; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .clock-btn.in { background: var(--green); color: white; }
+  .clock-btn.out { background: var(--orange); color: white; }
+  .clock-btn:disabled { opacity: 0.6; cursor: default; }
+
+  /* ---- unable to attend ---- */
+  .unable-row { display: flex; align-items: flex-start; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+  .unable-row input[type="checkbox"] { margin-top: 3px; }
+  .unable-row label { font-size: 14.5px; font-weight: 600; cursor: pointer; }
+  .unable-instructions {
+    display: none; margin-top: 10px; padding: 10px 12px; background: #fff4e5; border: 1px solid #f0c98a;
+    border-radius: 8px; font-size: 13.5px; line-height: 1.5;
+  }
+  .unable-instructions.show { display: block; }
+  .unable-submit-btn {
+    margin-top: 10px; padding: 8px 14px; border-radius: 8px; border: none; background: var(--orange);
+    color: white; font-size: 13.5px; font-weight: 600; cursor: pointer;
+  }
+  .unable-submit-btn:disabled { opacity: 0.6; cursor: default; }
+  .unable-confirmed { margin-top: 10px; font-size: 13.5px; color: var(--green); font-weight: 600; }
+
+  /* ---- admin overview ---- */
+  .admin-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .admin-table th { text-align: left; color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  .admin-table td { padding: 8px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .admin-table tr:last-child td { border-bottom: none; }
+  .admin-flag { display: inline-block; background: #fff4e5; color: var(--orange); border-radius: 999px; padding: 2px 8px; font-size: 12px; font-weight: 600; margin: 1px 0; }
+  .admin-manage-btn {
+    padding: 6px 12px; border-radius: 8px; border: 1px solid var(--blue); background: none; color: var(--blue);
+    font-size: 12.5px; font-weight: 600; cursor: pointer;
+  }
+
+  .role-desc-toggle {
+    background: none; border: 1px solid var(--blue); color: var(--blue); border-radius: 8px;
+    padding: 8px 14px; font-size: 13.5px; font-weight: 600; cursor: pointer; margin-top: 4px;
+  }
+  .resource-btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .resource-btn-row .role-desc-toggle {
+    flex: 1; min-width: 130px; text-align: center; text-decoration: none; display: inline-block; margin-top: 0;
+  }
+  .role-desc-panel {
+    margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border);
+  }
+  .schedule-game-row {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+    padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13.5px;
+  }
+  .schedule-game-row:last-child { border-bottom: none; }
+  .schedule-game-when { font-weight: 600; color: var(--navy); white-space: nowrap; }
+  .schedule-game-where { color: var(--muted); text-align: right; }
+  .doc-frame { width: 100%; height: 480px; border: none; }
+  .handbook-answer {
+    margin-top: 10px; padding: 10px 12px; background: #f5f7fb; border-radius: 8px;
+    font-size: 13.5px; line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚽ Footy Field Dashboard</h1>
+  <p id="todayLine">Loading today's date...</p>
+</header>
+
+<div class="controls">
+  <select id="roleSelect">
+    <option value="CC">Culture Captain</option>
+    <option value="MH">Market Host</option>
+  </select>
+  <select id="marketSelect" style="display:none;"><option>Loading markets...</option></select>
+  <select id="leagueSelect" style="display:none;"><option>Select a market first</option></select>
+</div>
+
+<!-- Signed-in bar (Culture Captain or Market Host, shown once signed in) -->
+<div class="signed-in-bar" id="signedInBar" style="display:none;">
+  <span id="signedInLabel"></span>
+  <button id="signOutBtn">Sign out</button>
+</div>
+
+<main>
+  <div id="errorBox"></div>
+
+  <!-- Sign-in gate, shared by Culture Captain and Market Host — title/hint/market
+       list are set dynamically by updateSigninCardLabels() based on state.role. -->
+  <div class="signin-card" id="signinCard" style="display:none;">
+    <h2 id="signinTitle">Culture Captain Sign In</h2>
+    <p class="hint muted" id="signinHint">Enter your name, market, and PIN to see your weekly tasks and clock in.</p>
+    <label for="signinName">Name</label>
+    <input id="signinName" type="text" autocomplete="name" placeholder="Your full name" />
+    <label for="signinMarket">Market</label>
+    <select id="signinMarket"><option value="">Select your market</option></select>
+    <label for="signinPin">PIN</label>
+    <input id="signinPin" type="password" inputmode="numeric" maxlength="8" placeholder="****" />
+    <button id="signinBtn">Sign In</button>
+    <div class="signin-error" id="signinError"></div>
+  </div>
+
+  <!-- Everything below only renders once: (a) role = Market Host, or (b) role = Culture Captain AND signed in -->
+  <div id="mainContent" style="display:none;">
+
+    <div class="status-card">
+      <div class="league-switcher" id="leagueSwitcherRow" style="display:none;">
+        <label for="captainLeagueSelect" class="muted" style="display:block; font-size:12.5px; margin-bottom:4px;">You cover multiple leagues — switch which one you're viewing:</label>
+        <select id="captainLeagueSelect"></select>
+      </div>
+      <div class="status-row">
+        <div>
+          <strong id="leagueLabel">No league selected</strong>
+          <div class="muted" id="startDateLine"></div>
+        </div>
+        <span class="period-pill estimate" id="periodPill">–</span>
+      </div>
+      <button class="role-desc-toggle" id="scheduleToggle" style="margin-top:12px; display:none;">Schedule</button>
+      <div id="schedulePanel" class="role-desc-panel" style="display:none;"></div>
+    </div>
+
+    <section class="card" id="clockSection" style="display:none;">
+      <h2>Clock In / Out</h2>
+      <div class="next-shift-line" id="nextShiftLine" style="display:none;"></div>
+      <div class="clock-card">
+        <div class="clock-status" id="clockStatus">Not clocked in.</div>
+        <button class="clock-btn in" id="clockBtn">Clock In</button>
+      </div>
+      <p class="muted" style="margin-top:10px;">This logs your shift time to the Attendance Log so Audrey can confirm coverage.</p>
+
+      <div id="unableSection">
+        <div class="unable-row">
+          <input type="checkbox" id="unableCheckbox" />
+          <label for="unableCheckbox">Unable to attend</label>
+        </div>
+        <div class="unable-instructions" id="unableInstructions">
+          Please reach out to Audrey and Gerardo in your league's Ref WhatsApp chat to confirm that you will not be attending this week's games, then submit below.
+          <div>
+            <button class="unable-submit-btn" id="unableSubmitBtn">Submit — I've messaged the Ref WhatsApp chat</button>
+          </div>
+        </div>
+        <div class="unable-confirmed" id="unableConfirmed" style="display:none;">Recorded — thanks for flagging this.</div>
+      </div>
+    </section>
+
+    <section class="card" id="todoSection">
+      <h2>Your To-Dos</h2>
+      <div id="todoList" class="empty">Loading tasks from Asana…</div>
+    </section>
+
+    <section class="card" id="resourcesSection" style="display:none;">
+      <h2>Resources</h2>
+      <div class="resource-btn-row" id="resourceBtnRowTop">
+        <a class="role-desc-toggle" id="addPhotosBtn" href="#" target="_blank" rel="noopener" style="display:none;">Add Photos</a>
+      </div>
+      <div class="resource-btn-row" id="resourceBtnRow" style="margin-top:10px;">
+        <button class="role-desc-toggle" id="week1Toggle">Week 1 Info</button>
+        <a class="role-desc-toggle" id="incidentReportBtn" href="#" target="_blank" rel="noopener">Incident Report Form</a>
+        <button class="role-desc-toggle" id="roleDescToggle">Role Description</button>
+        <button class="role-desc-toggle" id="cultureGuideToggle">Culture Guide</button>
+      </div>
+      <p class="muted" id="noPhotoFolderNote" style="display:none; margin:8px 0 0;"></p>
+      <div id="week1Panel" class="role-desc-panel" style="display:none;"></div>
+      <div id="roleDescPanel" class="role-desc-panel" style="display:none;"></div>
+      <div id="cultureGuidePanel" class="role-desc-panel" style="display:none;"></div>
+    </section>
+
+    <!-- Visible to both Culture Captains and Market Hosts, unlike Resources above. -->
+    <section class="card" id="handbookSection">
+      <h2>Ref Handbook</h2>
+      <p class="muted" style="margin-top:-6px;">League rules and referee guidelines</p>
+      <button class="role-desc-toggle" id="handbookToggle">View handbook</button>
+      <div id="handbookPanel" class="role-desc-panel" style="display:none;"></div>
+
+      <div style="margin-top:16px;">
+        <label for="handbookQuestion" class="muted" style="display:block; font-size:12.5px; margin-bottom:4px;">Ask a quick question about the handbook:</label>
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="handbookQuestion" placeholder="e.g. How many women need to be on the field?" style="flex:1; padding:9px 11px; border:1px solid var(--border); border-radius:8px; font-size:14px;" />
+          <button class="clock-btn in" id="handbookAskBtn">Ask</button>
+        </div>
+        <div id="handbookAnswer" class="handbook-answer" style="display:none;"></div>
+      </div>
+    </section>
+
+    <section class="card" id="milestoneSection" style="display:none;">
+      <h2>Season Status</h2>
+      <div id="milestoneList"></div>
+    </section>
+
+    <section class="card" id="roleContent"></section>
+
+    <section class="card">
+      <h2>Route Questions Related To...</h2>
+      <table class="routing">
+        <tr><th>Situation</th><th>Where it goes</th></tr>
+        <tr><td>Forfeit / scheduling questions</td><td>Captains chat</td></tr>
+        <tr><td>Weather / lightning / storm</td><td>Captains chat (we play through rain unless the field itself is closed)</td></tr>
+        <tr><td>Incident (fight, threat, serious conduct)</td><td>Incident report form + flag in ref ops chat immediately</td></tr>
+        <tr><td>Suspended player questions</td><td>Ref ops chat</td></tr>
+        <tr><td>Registration / billing</td><td>Market's CX email</td></tr>
+        <tr><td>Jersey issues</td><td>Market's CX email</td></tr>
+        <tr><td>Partnership / sponsorship inquiry</td><td>Audrey + Fabricio</td></tr>
+        <tr><td>Referees</td><td>League's Ref Ops chat</td></tr>
+        <tr><td>General question you can't answer</td><td>Direct to CX team via market email</td></tr>
+      </table>
+    </section>
+  </div>
+
+  <!-- Admin ("omnipresent") view — shown instead of mainContent when the signed-in
+       captain's row has Admin checked. Sees every market/league at once and can
+       act (check off tasks, clock in/out, flag unable-to-attend) as any captain. -->
+  <div id="adminContent" style="display:none;">
+    <div class="status-card">
+      <strong>Admin view</strong>
+      <div class="muted" style="margin-top:4px;">You're seeing every market and league, not just one. Click "Manage" on any row to check off to-dos or act on attendance for that market.</div>
+    </div>
+
+    <section class="card" id="adminOverviewSection">
+      <h2>Overview</h2>
+      <div id="adminOverviewTable" class="empty">Loading…</div>
+    </section>
+
+    <section class="card" id="adminDrilldownSection" style="display:none;">
+      <button class="role-desc-toggle" id="adminDrilldownClose" style="margin-bottom:12px;">← Back to overview</button>
+      <h2 id="adminDrilldownTitle">Market</h2>
+
+      <h3 style="margin-top:18px;">To-Dos</h3>
+      <div id="adminTodoList" class="empty">Loading…</div>
+
+      <h3 style="margin-top:18px;">Attendance — act as a captain</h3>
+      <label for="adminCaptainSelect" class="muted" style="display:block; font-size:12.5px; margin-bottom:4px;">Acting as:</label>
+      <select id="adminCaptainSelect"></select>
+
+      <div class="clock-card" style="margin-top:12px;">
+        <div class="clock-status" id="adminClockStatus">Pick a captain above.</div>
+        <button class="clock-btn in" id="adminClockBtn" disabled>Clock In</button>
+      </div>
+
+      <div id="adminUnableSection">
+        <div class="unable-row">
+          <input type="checkbox" id="adminUnableCheckbox" />
+          <label for="adminUnableCheckbox">Unable to attend</label>
+        </div>
+        <div class="unable-instructions" id="adminUnableInstructions">
+          Recorded on their behalf — confirm with them that they've messaged Audrey and Gerardo in the Ref WhatsApp chat.
+          <div>
+            <button class="unable-submit-btn" id="adminUnableSubmitBtn">Submit</button>
+          </div>
+        </div>
+        <div class="unable-confirmed" id="adminUnableConfirmed" style="display:none;">Recorded — thanks for flagging this.</div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer>Built for The Footy League · data from Airtable + Asana</footer>
+
+<script>
+/* ======================= CONFIG — fill these in ======================= */
+const CONFIG = {
+  // Your deployed Cloudflare Worker's base URL (no trailing slash, no path).
+  // e.g. https://footy-asana-proxy.yourname.workers.dev
+  PROXY_URL: "https://footy-asana-proxy.footyleaguemarkets.workers.dev",
+  // Rough season length used only when a league has a start date but no explicit end date on file.
+  ASSUMED_SEASON_WEEKS: 10,
+  // Weekly game-day photo folder per market (Dropbox for most markets, Google
+  // Drive for NJ — the label just says "photo folder" so the destination
+  // doesn't matter). Markets without a link yet just won't show one.
+  // These are Dropbox File Request links — upload-only by design (that's why
+  // the button is "Add Photos", not "View Photos"): anyone with the link can
+  // drop files in, but can't browse or view what's already there. That's
+  // fine for this use case since it's a drop point for Audrey to review, not
+  // a shared album.
+  DROPBOX_LINKS: {
+    "Miami": "https://www.dropbox.com/request/qed77z7nyz2hu70opkiu",
+    "NJ": "https://www.dropbox.com/request/g5nl0njtgtu3d3ut6wwc",
+    "Westchester": "https://www.dropbox.com/request/4z60m1qo9osfliy2po6h", // Audrey's list called this "NY" — confirmed same market as Westchester
+    "DFW": "https://www.dropbox.com/request/jfjgwd5hqye8ex7rb8vr",
+    "Tampa Bay": "https://www.dropbox.com/request/11sp46uec7vxo9s33vs1",
+    "Denver": "https://www.dropbox.com/request/puwesai1jq3rzfe8l5tg",
+    "Austin": "https://www.dropbox.com/request/3qwe51dg116xrrjbc1re",
+  },
+  // Culture Captain role description is now fetched live from the Worker's
+  // /role-description endpoint (see resourcesSection) rather than linked out to —
+  // no config needed here, the doc ID lives server-side in the Worker.
+  INCIDENT_REPORT_FORM_URL: "https://airtable.com/appqAGviWpiHh7PFK/pagNqwxrFh1rpZ8Ag/form",
+};
+/* ======================================================================= */
+
+const MARKETS = ["Miami", "NJ", "Westchester", "DFW", "Tampa Bay", "Denver", "Austin"];
+
+const state = {
+  leagues: [],
+  todos: [],
+  milestones: [],
+  role: "CC",
+  captain: null,      // { id, name, market, league } once signed in — league may be a comma-separated list
+  captainLeagues: [], // parsed list of league names from captain.league (split on comma)
+  activeLeague: null, // whichever of captainLeagues is currently selected, without re-signing in
+  attendanceRecordId: null, // Airtable record id of the open (not-yet-clocked-out) shift
+  roleDescOpen: false,
+  week1InfoOpen: false,
+  cultureGuideOpen: false,
+  scheduleOpen: false,
+  scheduleLeagueName: null, // which league's games are currently loaded in the schedule panel, so a league switch resets it
+  unableSubmitted: false, // whether "Unable to attend" has been reported this session
+
+  // ---- admin ("omnipresent") view ----
+  isAdmin: false,
+  adminRoster: [],        // active, non-admin captains: [{ id, name, market, league }]
+  adminAttendance: [],    // Attendance Log rows from the last 14 days
+  adminMarket: null,      // market currently open in the drill-down
+  adminLeague: null,      // league currently open in the drill-down
+  adminCaptain: null,     // roster entry currently being "acted as"
+  adminAttendanceRecordId: null, // open shift record id for adminCaptain, if any
+  adminUnableSubmitted: false,
+};
+
+function parseCaptainLeagues(leagueField) {
+  if (!leagueField) return [];
+  return leagueField.split(",").map(s => s.trim()).filter(Boolean);
+}
+
+function proxyUrl(path) {
+  return CONFIG.PROXY_URL.replace(/\/$/, "") + path;
+}
+
+function showError(msg) {
+  // Append rather than replace, so an earlier specific message (e.g. "PROXY_URL
+  // isn't set") isn't silently clobbered by a later, vaguer one from a
+  // downstream failure caused by the same root cause.
+  const box = document.getElementById("errorBox");
+  box.innerHTML += `<div class="error-banner">${msg}</div>`;
+}
+
+async function apiGet(path) {
+  const res = await fetch(proxyUrl(path));
+  if (!res.ok) {
+    // Parse the body even on failure — several endpoints (e.g. /role-description)
+    // return a specific, actionable `error` message worth surfacing rather than
+    // just the HTTP status code.
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `${path} returned ${res.status}`);
+  }
+  return res.json();
+}
+
+async function apiPost(path, body) {
+  const res = await fetch(proxyUrl(path), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body || {}),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.ok === false) throw new Error(data.error || `${path} returned ${res.status}`);
+  return data;
+}
+
+async function loadLeagues() {
+  const data = await apiGet("/leagues");
+  state.leagues = data.leagues || [];
+}
+
+async function loadDashboardTodos() {
+  const data = await apiGet("/dashboard-todos");
+  state.milestones = data.milestones || [];
+}
+
+async function loadAsanaTasks() {
+  try {
+    const data = await apiGet("/tasks");
+    return data.tasks || [];
+  } catch (e) {
+    console.error(e);
+    return null; // signals failure vs. empty
+  }
+}
+
+function leagueNamesMatch(a, b) {
+  if (!a || !b) return false;
+  const na = a.trim().toLowerCase(), nb = b.trim().toLowerCase();
+  return na === nb || na.includes(nb) || nb.includes(na);
+}
+
+// Prefer an exact (case-insensitive) match before falling back to fuzzy
+// substring matching. Matters more now that a captain can explicitly switch
+// between several specific leagues in the same market — a fuzzy-only match
+// risks silently resolving to the wrong one when names share a common prefix
+// (e.g. "Tampa Bay Monday" vs. "Tampa Bay Monday Coed").
+function findLeagueMatch(leagues, market, targetName) {
+  if (!targetName) return null;
+  const target = targetName.trim().toLowerCase();
+  const inMarket = leagues.filter(l => l.market === market);
+  const exact = inMarket.find(l => l.name.trim().toLowerCase() === target);
+  if (exact) return exact;
+  return inMarket.find(l => leagueNamesMatch(l.name, targetName)) || null;
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// Formats a due_on ("YYYY-MM-DD") into "Due Sep 20" — parsed as UTC-midnight
+// and displayed in those same UTC month/day parts, so the label always
+// matches the date Asana actually has on file, regardless of the viewer's
+// local timezone.
+function formatDueDate(dueOn) {
+  if (!dueOn) return "";
+  const d = new Date(dueOn + "T00:00:00Z");
+  const label = d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  return `Due ${label}`;
+}
+
+function computePeriod(startDateStr) {
+  if (!startDateStr) return { period: "Unknown — no season start date on file", estimated: false };
+  const start = new Date(startDateStr + "T00:00:00");
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const daysDiff = Math.round((today - start) / 86400000);
+  const seasonLenDays = CONFIG.ASSUMED_SEASON_WEEKS * 7;
+  let period;
+  if (daysDiff < -21) period = "Pre-Registration";
+  else if (daysDiff < -14) period = "Registration";
+  else if (daysDiff < 0) period = "Pre-Launch";
+  else if (daysDiff < seasonLenDays) period = "League Play";
+  else period = "Post-League";
+  return { period, estimated: true, daysDiff };
+}
+
+function currentMarket() {
+  // Both roles now sign in and are locked to their own market on file — once
+  // signed in, that's authoritative. The marketSelect dropdown is only ever
+  // consulted as a pre-signin fallback (shouldn't normally be reachable).
+  if (state.captain) return state.captain.market;
+  return document.getElementById("marketSelect").value;
+}
+
+function populateMarkets(selectEl, includeAdmin) {
+  // "Admin" is a valid Market value in Airtable (for the omnipresent admin
+  // view), reachable only from the Culture Captain sign-in tab — never shown
+  // on the Market Host sign-in tab, and never in the plain Market Host picker
+  // (populateMarketSelect, unaffected by this).
+  const list = includeAdmin ? MARKETS.concat(["Admin"]) : MARKETS;
+  selectEl.innerHTML = `<option value="">Select your market</option>` +
+    list.map(m => `<option value="${m}">${m}</option>`).join("");
+}
+
+// Keeps the shared sign-in card's title/hint/market-list in sync with
+// whichever role tab (Culture Captain / Market Host) is currently selected.
+function updateSigninCardLabels() {
+  const isCC = state.role === "CC";
+  document.getElementById("signinTitle").textContent = isCC ? "Culture Captain Sign In" : "Market Host Sign In";
+  document.getElementById("signinHint").textContent = isCC
+    ? "Enter your name, market, and PIN to see your weekly tasks and clock in."
+    : "Enter your name, market, and PIN to sign in.";
+  populateMarkets(document.getElementById("signinMarket"), isCC);
+}
+
+function populateMarketSelect() {
+  const sel = document.getElementById("marketSelect");
+  sel.innerHTML = MARKETS.map(m => `<option value="${m}">${m}</option>`).join("");
+  sel.value = "Tampa Bay";
+}
+
+function populateLeagues() {
+  const market = currentMarket();
+  const sel = document.getElementById("leagueSelect");
+  const leagues = state.leagues.filter(l => l.market === market);
+  if (leagues.length === 0) {
+    sel.innerHTML = `<option value="">No leagues on file for ${market}</option>`;
+    return;
+  }
+  sel.innerHTML = `<option value="">Whole market (no specific league)</option>` +
+    leagues.map(l => `<option value="${l.id}">${l.name}</option>`).join("");
+}
+
+function renderLeagueSwitcher() {
+  const row = document.getElementById("leagueSwitcherRow");
+  const sel = document.getElementById("captainLeagueSelect");
+  if (state.role !== "CC" || !state.captain || state.captainLeagues.length < 2) {
+    row.style.display = "none";
+    return;
+  }
+  row.style.display = "block";
+  sel.innerHTML = state.captainLeagues.map(name =>
+    `<option value="${escapeHtml(name)}" ${name === state.activeLeague ? "selected" : ""}>${escapeHtml(name)}</option>`
+  ).join("");
+}
+
+function onCaptainLeagueSwitch() {
+  state.activeLeague = document.getElementById("captainLeagueSelect").value;
+  state.unableSubmitted = false; // "unable to attend" is per-league; don't carry it across a switch
+  localStorage.setItem("footy_cc_active_league", state.activeLeague);
+  refreshAll();
+}
+
+function renderStatus() {
+  const market = currentMarket();
+  const leagueId = document.getElementById("leagueSelect").value;
+  let league = state.leagues.find(l => l.id === leagueId);
+
+  // If a signed-in captain has league(s) on file and hasn't picked one manually
+  // via the plain leagueSelect, match against whichever league is currently
+  // active (relevant when a captain covers more than one and has switched).
+  if (!league && state.role === "CC" && state.captain && state.activeLeague) {
+    league = findLeagueMatch(state.leagues, market, state.activeLeague);
+  }
+
+  // Keep the resolved league name (or null) in state, separate from the display
+  // label, so other code (e.g. clock in/out) never has to scrape placeholder text.
+  state.resolvedLeagueName = league ? league.name : null;
+  document.getElementById("leagueLabel").textContent = league ? league.name : `${market || "—"} — no specific league selected`;
+
+  let periodInfo, override = null;
+  if (league) {
+    override = state.milestones.find(m => m.kind === "override" && m.market === market &&
+      (!m.league || leagueNamesMatch(m.league, league.name)));
+    document.getElementById("startDateLine").textContent = league.startDate
+      ? "Season start: " + league.startDate
+      : "No season start date on file for this league — add one in Airtable, or add a Period Override row in Dashboard To-Dos.";
+    periodInfo = override ? { period: override.period, estimated: false } : computePeriod(league.startDate);
+  } else {
+    document.getElementById("startDateLine").textContent = "Pick a specific league above for date-based status.";
+    periodInfo = { period: "—", estimated: false };
+  }
+
+  const pill = document.getElementById("periodPill");
+  pill.textContent = periodInfo.period;
+  pill.className = "period-pill" + (periodInfo.estimated ? " estimate" : "");
+
+  // Schedule button only makes sense for a specific league (it's not
+  // meaningful for "no specific league selected"). If the resolved league
+  // changed since the panel was last opened — including going from a real
+  // league to none, or switching between leagues — close/reset it rather
+  // than leaving a stale league's games on screen under a new label.
+  const scheduleBtn = document.getElementById("scheduleToggle");
+  const schedulePanel = document.getElementById("schedulePanel");
+  scheduleBtn.style.display = league ? "inline-block" : "none";
+  if (state.scheduleLeagueName !== state.resolvedLeagueName) {
+    state.scheduleOpen = false;
+    schedulePanel.style.display = "none";
+    scheduleBtn.textContent = "Schedule";
+    // Also clear any stuck "disabled" state left by an in-flight request for
+    // the league being switched away from — see the matching guard in
+    // toggleSchedule() that bails out rather than re-enabling it itself.
+    scheduleBtn.disabled = false;
+    state.scheduleLeagueName = state.resolvedLeagueName;
+  }
+
+  renderMilestones(market, league);
+}
+
+function renderMilestones(market, league) {
+  const flags = state.milestones.filter(m => m.kind === "flag" && m.market === market &&
+    (!league || !m.league || leagueNamesMatch(m.league, league.name)));
+  const section = document.getElementById("milestoneSection");
+  const list = document.getElementById("milestoneList");
+  if (flags.length === 0) { section.style.display = "none"; return; }
+  section.style.display = "block";
+  list.innerHTML = flags.map(f =>
+    `<div class="todo-item"><span>${f.item}</span><span class="todo-due">${f.status || ""}</span></div>`
+  ).join("");
+}
+
+// Some to-dos have seasonal reference material attached (e.g. the Center
+// Circle script) that used to be shown all the time, cluttering the view even
+// in weeks it wasn't relevant. Now it only shows up as a "View" toggle next
+// to a to-do whose title matches — nothing to see until there's a real task
+// for it. Add more entries here as Audrey creates matching Asana tasks; the
+// match is a case-insensitive substring against the task title.
+function findTodoDetail(title) {
+  const t = (title || "").toLowerCase();
+  return TODO_DETAILS.find(d => t.includes(d.match)) || null;
+}
+
+function buildTodoRow(t, onCheckFn) {
+  const row = document.createElement("div");
+  row.className = "todo-item";
+  const detail = findTodoDetail(t.title);
+  row.innerHTML = `
+    <div class="todo-row">
+      <div class="todo-main">
+        <input type="checkbox" class="todo-check" />
+        <span class="todo-title">${t.url ? `<a href="${t.url}" target="_blank">${escapeHtml(t.title)}</a>` : escapeHtml(t.title)}</span>
+      </div>
+      <span class="todo-due">${formatDueDate(t.due_on)}</span>
+    </div>
+    ${detail ? `<button type="button" class="todo-detail-toggle">${escapeHtml(detail.label)}</button><div class="todo-detail-panel" style="display:none;">${detail.html}</div>` : ""}
+  `;
+  row.querySelector(".todo-check").addEventListener("change", (e) => {
+    if (e.target.checked) onCheckFn(t.gid, row);
+  });
+  const toggleBtn = row.querySelector(".todo-detail-toggle");
+  if (toggleBtn) {
+    toggleBtn.addEventListener("click", () => {
+      const panel = row.querySelector(".todo-detail-panel");
+      const nowOpen = panel.style.display === "none";
+      panel.style.display = nowOpen ? "block" : "none";
+      toggleBtn.textContent = nowOpen ? "Hide" : detail.label;
+    });
+  }
+  return row;
+}
+
+async function onTodoCheck(gid, rowEl) {
+  const titleEl = rowEl.querySelector(".todo-title");
+  const checkEl = rowEl.querySelector(".todo-check");
+  checkEl.disabled = true;
+  titleEl.classList.add("checking");
+  try {
+    await apiPost("/tasks/complete", { gid });
+    rowEl.remove();
+    // If that was the last item, show the empty state again.
+    const list = document.getElementById("todoList");
+    if (!list.querySelector(".todo-item")) {
+      list.innerHTML = `<div class="empty">Nothing left on your list for ${currentMarket()} right now. Nice work.</div>`;
+    }
+  } catch (e) {
+    checkEl.checked = false;
+    checkEl.disabled = false;
+    titleEl.classList.remove("checking");
+    showError("Couldn't mark that task complete: " + e.message);
+  }
+}
+
+function renderTodos() {
+  const role = state.role;
+  const market = currentMarket();
+  const list = document.getElementById("todoList");
+
+  if (state.todos === null) {
+    list.innerHTML = `<div class="empty">Couldn't reach the proxy. Check CONFIG.PROXY_URL, or that the Worker is deployed.</div>`;
+    return;
+  }
+  // Prefer whichever league is currently active/selected — same resolution
+  // order used for clock in/out and the schedule panel. A task tagged with a
+  // specific league only shows while that league is the one being viewed;
+  // if no specific league is being viewed (e.g. a Market Host on "whole
+  // market"), league-tagged tasks show regardless — same leniency as the
+  // milestone flags below the status card.
+  const viewingLeague = state.activeLeague || state.resolvedLeagueName;
+  const filtered = state.todos.filter(t =>
+    (!t.market || t.market === market) && (!t.role || t.role === role || t.role === "Both") &&
+    (!viewingLeague || !t.league || leagueNamesMatch(t.league, viewingLeague))
+  );
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="empty">No open to-dos for ${market || "your market"} right now.</div>`;
+    return;
+  }
+  list.innerHTML = "";
+  filtered.forEach(t => list.appendChild(buildTodoRow(t, onTodoCheck)));
+}
+
+function renderResources() {
+  const section = document.getElementById("resourcesSection");
+  const addPhotosBtn = document.getElementById("addPhotosBtn");
+  const incidentBtn = document.getElementById("incidentReportBtn");
+  const note = document.getElementById("noPhotoFolderNote");
+  // The role-description toggle is always available for Culture Captains, even
+  // for markets with no photo-upload link on file yet — so this section only
+  // fully hides for Market Host, not just when the photo link is missing.
+  if (state.role !== "CC") { section.style.display = "none"; return; }
+  section.style.display = "block";
+  const market = currentMarket();
+  const dropbox = CONFIG.DROPBOX_LINKS[market];
+  if (dropbox) {
+    addPhotosBtn.href = dropbox;
+    addPhotosBtn.style.display = "inline-block";
+    note.style.display = "none";
+  } else {
+    addPhotosBtn.style.display = "none";
+    note.textContent = `No photo upload link on file yet for ${market || "your market"}.`;
+    note.style.display = "block";
+  }
+  incidentBtn.href = CONFIG.INCIDENT_REPORT_FORM_URL;
+}
+
+/* ---------------- Role description (live from Google Doc, view-on-demand) ---------------- */
+
+// Renders a Google Docs HTML export inside a sandboxed iframe, so the doc's
+// own formatting (headings/bold/bullets) shows up as it does in the source,
+// and its embedded <style> block can't leak into or clash with the
+// dashboard's own CSS. `sandbox` (no "allow-scripts") means nothing in the
+// doc export can execute, even though this is trusted Google-generated HTML —
+// cheap defense in depth for content that will eventually be re-fetched live
+// on every view. Reused by the role description and (later) the culture guide.
+function renderDocIntoPanel(panelEl, html) {
+  const iframe = document.createElement("iframe");
+  iframe.className = "doc-frame";
+  iframe.sandbox = "allow-same-origin";
+  iframe.srcdoc = html;
+  panelEl.innerHTML = "";
+  panelEl.appendChild(iframe);
+}
+
+/* ---------------- Schedule panel (live upcoming games for the current league) ---------------- */
+
+function renderScheduleGames(panel, games) {
+  if (!games || games.length === 0) {
+    panel.innerHTML = `<p class="muted">No upcoming scheduled games found yet for this league.</p>`;
+    return;
+  }
+  panel.innerHTML = games.map(g => {
+    const when = g.startDate ? (g.startTime ? `${g.startDate} · ${g.startTime}` : g.startDate) : "Date TBD";
+    const opponents = (g.team1 && g.team2) ? `${g.team1} vs ${g.team2}` : (g.team1 || g.team2 || "");
+    const where = [opponents, g.locationName].filter(Boolean).join(" — ");
+    return `<div class="schedule-game-row">
+      <span class="schedule-game-when">${escapeHtml(when)}</span>
+      <span class="schedule-game-where">${escapeHtml(where)}</span>
+    </div>`;
+  }).join("");
+}
+
+async function toggleSchedule() {
+  const btn = document.getElementById("scheduleToggle");
+  const panel = document.getElementById("schedulePanel");
+  if (state.scheduleOpen) {
+    state.scheduleOpen = false;
+    panel.style.display = "none";
+    btn.textContent = "Schedule";
+    return;
+  }
+  const league = state.resolvedLeagueName;
+  if (!league) return; // button is hidden in this case, but guard anyway
+  btn.disabled = true;
+  btn.textContent = "Loading...";
+  try {
+    // Fetched fresh every time it's opened (no caching), same as the Clock
+    // In/Out "next scheduled game" line — both read live from the synced
+    // LeagueApps schedule data, so this always reflects the latest sync.
+    const data = await apiGet(`/schedule/upcoming?league=${encodeURIComponent(league)}`);
+    // The league the user is viewing may have changed while this request was
+    // in flight (e.g. they switched leagues before it returned) — renderStatus()
+    // already reset/closed the panel for the new league in that case, so
+    // applying this now-stale response would silently repaint the wrong
+    // league's games under the new league's label. Bail out instead.
+    if (state.resolvedLeagueName !== league) return;
+    renderScheduleGames(panel, data.games);
+    btn.textContent = "Hide Schedule";
+  } catch (e) {
+    if (state.resolvedLeagueName !== league) return;
+    panel.innerHTML = `<p class="muted">Couldn't load the schedule: ${escapeHtml(e.message)}</p>`;
+    btn.textContent = "Hide Schedule";
+  }
+  panel.style.display = "block";
+  state.scheduleOpen = true;
+  btn.disabled = false;
+}
+
+// Static content (no live fetch needed, unlike the role description/handbook
+// docs) — same on-demand-only pattern as the other Resources toggles, so it
+// doesn't clutter the card by default.
+function toggleWeek1Info() {
+  const panel = document.getElementById("week1Panel");
+  const btn = document.getElementById("week1Toggle");
+  if (state.week1InfoOpen) {
+    state.week1InfoOpen = false;
+    panel.style.display = "none";
+    btn.textContent = "Week 1 Info";
+    return;
+  }
+  panel.innerHTML = WEEK1_INFO_CONTENT;
+  panel.style.display = "block";
+  state.week1InfoOpen = true;
+  btn.textContent = "Hide Week 1 Info";
+}
+
+async function toggleRoleDescription() {
+  const panel = document.getElementById("roleDescPanel");
+  const btn = document.getElementById("roleDescToggle");
+  if (state.roleDescOpen) {
+    state.roleDescOpen = false;
+    panel.style.display = "none";
+    btn.textContent = "Role Description";
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = "Loading...";
+  try {
+    // Fetched fresh every time it's opened (no caching) so edits to the Google
+    // Doc show up right away, per Audrey's requirement.
+    const data = await apiGet("/role-description");
+    if (data.html) {
+      renderDocIntoPanel(panel, data.html);
+    } else {
+      panel.innerHTML = `<p class="muted">(The role description doc appears to be empty.)</p>`;
+    }
+    panel.style.display = "block";
+    state.roleDescOpen = true;
+    btn.textContent = "Hide Role Description";
+  } catch (e) {
+    showError("Couldn't load the role description: " + e.message);
+    btn.textContent = "Role Description";
+  }
+  btn.disabled = false;
+}
+
+async function toggleCultureGuide() {
+  const panel = document.getElementById("cultureGuidePanel");
+  const btn = document.getElementById("cultureGuideToggle");
+  if (state.cultureGuideOpen) {
+    state.cultureGuideOpen = false;
+    panel.style.display = "none";
+    btn.textContent = "Culture Guide";
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = "Loading...";
+  try {
+    // Fetched fresh every time it's opened (no caching), same as Role
+    // Description, so edits to the Google Doc show up right away.
+    const data = await apiGet("/culture-guide");
+    if (data.html) {
+      renderDocIntoPanel(panel, data.html);
+    } else {
+      panel.innerHTML = `<p class="muted">(The Culture Guide doc appears to be empty.)</p>`;
+    }
+    panel.style.display = "block";
+    state.cultureGuideOpen = true;
+    btn.textContent = "Hide Culture Guide";
+  } catch (e) {
+    showError("Couldn't load the Culture Guide: " + e.message);
+    btn.textContent = "Culture Guide";
+  }
+  btn.disabled = false;
+}
+
+/* ---------------- Ref Handbook (live from Google Doc, Parts 1-3 only + AI Q&A) ---------------- */
+
+let handbookOpen = false;
+
+async function toggleHandbook() {
+  const panel = document.getElementById("handbookPanel");
+  const btn = document.getElementById("handbookToggle");
+  if (handbookOpen) {
+    handbookOpen = false;
+    panel.style.display = "none";
+    btn.textContent = "View handbook";
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = "Loading...";
+  try {
+    const data = await apiGet("/handbook");
+    if (data.html) {
+      renderDocIntoPanel(panel, data.html);
+    } else {
+      panel.innerHTML = `<p class="muted">(The handbook doc appears to be empty.)</p>`;
+    }
+    panel.style.display = "block";
+    handbookOpen = true;
+    btn.textContent = "Hide handbook";
+  } catch (e) {
+    showError("Couldn't load the Ref Handbook: " + e.message);
+    btn.textContent = "View handbook";
+  }
+  btn.disabled = false;
+}
+
+async function onHandbookAsk() {
+  const input = document.getElementById("handbookQuestion");
+  const answerBox = document.getElementById("handbookAnswer");
+  const btn = document.getElementById("handbookAskBtn");
+  const question = input.value.trim();
+  if (!question) return;
+  btn.disabled = true;
+  btn.textContent = "Asking...";
+  answerBox.style.display = "block";
+  answerBox.textContent = "Thinking...";
+  try {
+    const data = await apiPost("/handbook/ask", { question });
+    answerBox.textContent = data.answer || "(No answer returned.)";
+  } catch (e) {
+    answerBox.textContent = "Couldn't get an answer: " + e.message;
+  }
+  btn.disabled = false;
+  btn.textContent = "Ask";
+}
+
+/* ---------------- Clock in / out ---------------- */
+
+function renderClockSection() {
+  const section = document.getElementById("clockSection");
+  if (state.role !== "CC" || !state.captain) { section.style.display = "none"; return; }
+  section.style.display = "block";
+  const status = document.getElementById("clockStatus");
+  const btn = document.getElementById("clockBtn");
+  if (state.attendanceRecordId) {
+    status.innerHTML = `Clocked in as <strong>${state.captain.name}</strong>.`;
+    btn.textContent = "Clock Out";
+    btn.className = "clock-btn out";
+  } else {
+    status.innerHTML = `Not clocked in.`;
+    btn.textContent = "Clock In";
+    btn.className = "clock-btn in";
+  }
+  btn.disabled = false;
+  renderUnableSection();
+  loadNextShift();
+}
+
+// Fetches the next upcoming scheduled game for the captain's current league
+// from the live-synced LeagueApps schedule data (Worker's /schedule/next),
+// and shows it in the Clock In/Out card. Best-effort: any failure just hides
+// the line rather than surfacing an error banner, since this is a nice-to-have
+// alongside clock in/out, not something that should block it.
+async function loadNextShift() {
+  const line = document.getElementById("nextShiftLine");
+  if (!line) return;
+  if (state.role !== "CC" || !state.captain) { line.style.display = "none"; return; }
+  const league = state.activeLeague || state.resolvedLeagueName || "";
+  if (!league) { line.style.display = "none"; return; }
+  line.style.display = "block";
+  line.textContent = "Loading next scheduled game…";
+  try {
+    const data = await apiGet(`/schedule/next?league=${encodeURIComponent(league)}`);
+    const g = data.nextGame;
+    if (!g) {
+      line.textContent = "No upcoming scheduled game found yet for this league.";
+      return;
+    }
+    const when = g.startDate ? (g.startTime ? `${g.startDate} at ${g.startTime}` : g.startDate) : "date TBD";
+    line.innerHTML = `Next scheduled game: <strong>${escapeHtml(when)}</strong>` +
+      (g.locationName ? ` — ${escapeHtml(g.locationName)}` : "");
+  } catch (e) {
+    line.style.display = "none";
+  }
+}
+
+/* ---------------- Unable to attend ---------------- */
+
+function renderUnableSection() {
+  const wrap = document.getElementById("unableSection");
+  const checkbox = document.getElementById("unableCheckbox");
+  const instructions = document.getElementById("unableInstructions");
+  const confirmed = document.getElementById("unableConfirmed");
+  const submitBtn = document.getElementById("unableSubmitBtn");
+
+  // Only relevant if the captain hasn't already clocked in for this week's shift
+  // (clocking in already confirms attendance, so the two are mutually exclusive).
+  if (state.attendanceRecordId) {
+    wrap.style.display = "none";
+    return;
+  }
+  wrap.style.display = "block";
+
+  if (state.unableSubmitted) {
+    checkbox.checked = true;
+    checkbox.disabled = true;
+    instructions.classList.remove("show");
+    confirmed.style.display = "block";
+    submitBtn.disabled = true;
+    return;
+  }
+
+  confirmed.style.display = "none";
+  checkbox.disabled = false;
+  instructions.classList.toggle("show", checkbox.checked);
+  submitBtn.disabled = false;
+}
+
+function onUnableCheckboxChange() {
+  const checkbox = document.getElementById("unableCheckbox");
+  const instructions = document.getElementById("unableInstructions");
+  instructions.classList.toggle("show", checkbox.checked);
+}
+
+async function onUnableSubmit() {
+  if (!state.captain) return;
+  const btn = document.getElementById("unableSubmitBtn");
+  btn.disabled = true;
+  btn.textContent = "Submitting...";
+  try {
+    const league = state.activeLeague || state.resolvedLeagueName || "";
+    await apiPost("/attendance/unable", {
+      captainName: state.captain.name,
+      market: state.captain.market,
+      league,
+    });
+    state.unableSubmitted = true;
+    renderUnableSection();
+  } catch (e) {
+    showError("Couldn't record 'unable to attend': " + e.message);
+    btn.disabled = false;
+    btn.textContent = "Submit — I've messaged the Ref WhatsApp chat";
+  }
+}
+
+async function onClockClick() {
+  const btn = document.getElementById("clockBtn");
+  btn.disabled = true;
+  try {
+    if (!state.attendanceRecordId) {
+      // Prefer whichever league is currently active (handles captains who cover
+      // more than one and have switched); otherwise whatever renderStatus()
+      // resolved — never the "no specific league selected" placeholder text.
+      const league = state.activeLeague || state.resolvedLeagueName || "";
+      const data = await apiPost("/attendance/clockin", {
+        captainId: state.captain.id,
+        captainName: state.captain.name,
+        market: state.captain.market,
+        league,
+      });
+      state.attendanceRecordId = data.recordId;
+      state.unableSubmitted = false; // clocking in confirms attendance; clear any earlier flag
+      localStorage.setItem("footy_cc_attendance", data.recordId);
+    } else {
+      await apiPost("/attendance/clockout", { recordId: state.attendanceRecordId });
+      state.attendanceRecordId = null;
+      localStorage.removeItem("footy_cc_attendance");
+    }
+  } catch (e) {
+    showError("Clock in/out failed: " + e.message);
+  }
+  renderClockSection();
+}
+
+/* ---------------- Admin ("omnipresent") view ---------------- */
+
+async function loadAdminData() {
+  try {
+    const [rosterData, attendanceData] = await Promise.all([
+      apiGet("/admin/roster"),
+      apiGet("/admin/attendance"),
+    ]);
+    state.adminRoster = rosterData.roster || [];
+    state.adminAttendance = attendanceData.attendance || [];
+  } catch (e) {
+    showError("Couldn't load admin data: " + e.message);
+    state.adminRoster = [];
+    state.adminAttendance = [];
+  }
+}
+
+function adminOpenShiftsFor(market, league) {
+  return state.adminAttendance.filter(a =>
+    a.market === market && leagueNamesMatch(a.league, league) && a.clockIn && !a.clockOut
+  );
+}
+
+function adminUnableFlagsFor(market, league) {
+  return state.adminAttendance.filter(a =>
+    a.market === market && leagueNamesMatch(a.league, league) && a.unableToAttend
+  );
+}
+
+function renderAdminOverview() {
+  const box = document.getElementById("adminOverviewTable");
+  if (!state.leagues || state.leagues.length === 0) {
+    box.innerHTML = `<div class="empty">No leagues on file yet.</div>`;
+    return;
+  }
+  const rows = state.leagues.map(l => {
+    const openTodos = (state.todos || []).filter(t =>
+      t.market === l.market && (!t.role || t.role === "CC" || t.role === "Both") &&
+      (!t.league || leagueNamesMatch(t.league, l.name))
+    ).length;
+    const clockedIn = adminOpenShiftsFor(l.market, l.name);
+    const unable = adminUnableFlagsFor(l.market, l.name);
+    return `
+      <tr>
+        <td><strong>${escapeHtml(l.market)}</strong></td>
+        <td>${escapeHtml(l.name)}</td>
+        <td>${state.todos === null ? "–" : openTodos}</td>
+        <td>${clockedIn.length ? clockedIn.map(c => `<span class="admin-flag">${escapeHtml(c.captain || "?")}</span>`).join(" ") : "<span class=\"muted\">—</span>"}</td>
+        <td>${unable.length ? unable.map(u => `<span class="admin-flag">${escapeHtml(u.captain || "?")}</span>`).join(" ") : "<span class=\"muted\">—</span>"}</td>
+        <td><button class="admin-manage-btn" data-market="${escapeHtml(l.market)}" data-league="${escapeHtml(l.name)}">Manage</button></td>
+      </tr>`;
+  }).join("");
+  box.innerHTML = `
+    <table class="admin-table">
+      <tr><th>Market</th><th>League</th><th>Open to-dos</th><th>Clocked in</th><th>Unable to attend</th><th></th></tr>
+      ${rows}
+    </table>`;
+  box.querySelectorAll(".admin-manage-btn").forEach(btn => {
+    btn.addEventListener("click", () => openAdminDrilldown(btn.dataset.market, btn.dataset.league));
+  });
+}
+
+function openAdminDrilldown(market, league) {
+  state.adminMarket = market;
+  state.adminLeague = league;
+  state.adminCaptain = null;
+  state.adminAttendanceRecordId = null;
+  state.adminUnableSubmitted = false;
+  document.getElementById("adminOverviewSection").style.display = "none";
+  document.getElementById("adminDrilldownSection").style.display = "block";
+  document.getElementById("adminDrilldownTitle").textContent = `${market} — ${league}`;
+  renderAdminTodos();
+  populateAdminCaptainSelect();
+}
+
+function closeAdminDrilldown() {
+  document.getElementById("adminDrilldownSection").style.display = "none";
+  document.getElementById("adminOverviewSection").style.display = "block";
+  renderAdminOverview();
+}
+
+async function onAdminTodoCheck(gid, rowEl) {
+  const titleEl = rowEl.querySelector(".todo-title");
+  const checkEl = rowEl.querySelector(".todo-check");
+  checkEl.disabled = true;
+  titleEl.classList.add("checking");
+  try {
+    await apiPost("/tasks/complete", { gid });
+    rowEl.remove();
+    const list = document.getElementById("adminTodoList");
+    if (!list.querySelector(".todo-item")) {
+      list.innerHTML = `<div class="empty">Nothing left for ${state.adminMarket} right now.</div>`;
+    }
+  } catch (e) {
+    checkEl.checked = false;
+    checkEl.disabled = false;
+    titleEl.classList.remove("checking");
+    showError("Couldn't mark that task complete: " + e.message);
+  }
+}
+
+function renderAdminTodos() {
+  const list = document.getElementById("adminTodoList");
+  if (state.todos === null) {
+    list.innerHTML = `<div class="empty">Couldn't reach the proxy. Check CONFIG.PROXY_URL, or that the Worker is deployed.</div>`;
+    return;
+  }
+  // The admin drilldown is always opened for one specific market+league, so
+  // (unlike the captain-facing renderTodos) there's no "whole market"
+  // leniency needed here — a league-tagged task only shows in the league it's
+  // tagged for.
+  const filtered = (state.todos || []).filter(t =>
+    t.market === state.adminMarket && (!t.role || t.role === "CC" || t.role === "Both") &&
+    (!t.league || leagueNamesMatch(t.league, state.adminLeague))
+  );
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="empty">No open to-dos for ${state.adminMarket} right now.</div>`;
+    return;
+  }
+  list.innerHTML = "";
+  list.className = "";
+  filtered.forEach(t => list.appendChild(buildTodoRow(t, onAdminTodoCheck)));
+}
+
+function populateAdminCaptainSelect() {
+  const sel = document.getElementById("adminCaptainSelect");
+  // Market Hosts are market-wide (not tied to a specific league), so they show
+  // up in every league's drilldown for their market, same as they'd show up
+  // no matter which of their market's leagues you opened. They're labeled
+  // clearly since — unlike Culture Captains — they don't clock in or get
+  // flagged unable to attend (see renderAdminClockSection/renderAdminUnableSection).
+  const roster = state.adminRoster.filter(c => c.market === state.adminMarket);
+  if (roster.length === 0) {
+    sel.innerHTML = `<option value="">No active captains on file for ${state.adminMarket}</option>`;
+    state.adminCaptain = null;
+  } else {
+    sel.innerHTML = `<option value="">Select a captain...</option>` +
+      roster.map(c => `<option value="${c.id}">${escapeHtml(c.name)}${c.league ? " (" + escapeHtml(c.league) + ")" : ""}${c.role === "Market Host" ? " — Market Host" : ""}</option>`).join("");
+    state.adminCaptain = null;
+  }
+  renderAdminClockSection();
+  renderAdminUnableSection();
+}
+
+function onAdminCaptainSelectChange() {
+  const id = document.getElementById("adminCaptainSelect").value;
+  state.adminCaptain = state.adminRoster.find(c => c.id === id) || null;
+  state.adminUnableSubmitted = false;
+  // Reflect whatever's already on file for this captain in this league, so
+  // admin isn't guessing at their current clock-in status.
+  const openShift = state.adminCaptain
+    ? state.adminAttendance.find(a =>
+        a.captain === state.adminCaptain.name && a.market === state.adminMarket &&
+        leagueNamesMatch(a.league, state.adminLeague) && a.clockIn && !a.clockOut)
+    : null;
+  state.adminAttendanceRecordId = openShift ? openShift.id : null;
+  renderAdminClockSection();
+  renderAdminUnableSection();
+}
+
+function renderAdminClockSection() {
+  const status = document.getElementById("adminClockStatus");
+  const btn = document.getElementById("adminClockBtn");
+  if (!state.adminCaptain) {
+    status.textContent = "Pick a captain above.";
+    btn.disabled = true;
+    btn.textContent = "Clock In";
+    btn.className = "clock-btn in";
+    btn.style.display = "";
+    return;
+  }
+  if (state.adminCaptain.role === "Market Host") {
+    status.textContent = "Market Hosts don't clock in — nothing to manage here.";
+    btn.style.display = "none";
+    return;
+  }
+  btn.style.display = "";
+  btn.disabled = false;
+  if (state.adminAttendanceRecordId) {
+    status.innerHTML = `Clocked in as <strong>${escapeHtml(state.adminCaptain.name)}</strong>.`;
+    btn.textContent = "Clock Out";
+    btn.className = "clock-btn out";
+  } else {
+    status.innerHTML = `<strong>${escapeHtml(state.adminCaptain.name)}</strong> is not clocked in.`;
+    btn.textContent = "Clock In";
+    btn.className = "clock-btn in";
+  }
+}
+
+async function onAdminClockClick() {
+  if (!state.adminCaptain || state.adminCaptain.role === "Market Host") return;
+  const btn = document.getElementById("adminClockBtn");
+  btn.disabled = true;
+  try {
+    if (!state.adminAttendanceRecordId) {
+      const data = await apiPost("/attendance/clockin", {
+        captainId: state.adminCaptain.id,
+        captainName: state.adminCaptain.name,
+        market: state.adminMarket,
+        league: state.adminLeague,
+      });
+      state.adminAttendanceRecordId = data.recordId;
+    } else {
+      await apiPost("/attendance/clockout", { recordId: state.adminAttendanceRecordId });
+      state.adminAttendanceRecordId = null;
+    }
+    await loadAdminData(); // refresh so the overview reflects this immediately
+  } catch (e) {
+    showError("Clock in/out failed: " + e.message);
+  }
+  renderAdminClockSection();
+}
+
+function renderAdminUnableSection() {
+  const wrap = document.getElementById("adminUnableSection");
+  const checkbox = document.getElementById("adminUnableCheckbox");
+  const instructions = document.getElementById("adminUnableInstructions");
+  const confirmed = document.getElementById("adminUnableConfirmed");
+  const submitBtn = document.getElementById("adminUnableSubmitBtn");
+
+  if (!state.adminCaptain || state.adminAttendanceRecordId || state.adminCaptain.role === "Market Host") {
+    wrap.style.display = "none";
+    return;
+  }
+  wrap.style.display = "block";
+  checkbox.disabled = false;
+  checkbox.checked = state.adminUnableSubmitted;
+  instructions.classList.toggle("show", checkbox.checked && !state.adminUnableSubmitted);
+  confirmed.style.display = state.adminUnableSubmitted ? "block" : "none";
+  submitBtn.disabled = state.adminUnableSubmitted;
+  if (state.adminUnableSubmitted) checkbox.disabled = true;
+}
+
+function onAdminUnableCheckboxChange() {
+  const checkbox = document.getElementById("adminUnableCheckbox");
+  const instructions = document.getElementById("adminUnableInstructions");
+  instructions.classList.toggle("show", checkbox.checked);
+}
+
+async function onAdminUnableSubmit() {
+  if (!state.adminCaptain || state.adminCaptain.role === "Market Host") return;
+  const btn = document.getElementById("adminUnableSubmitBtn");
+  btn.disabled = true;
+  btn.textContent = "Submitting...";
+  try {
+    await apiPost("/attendance/unable", {
+      captainName: state.adminCaptain.name,
+      market: state.adminMarket,
+      league: state.adminLeague,
+    });
+    state.adminUnableSubmitted = true;
+    await loadAdminData();
+    renderAdminUnableSection();
+  } catch (e) {
+    showError("Couldn't record 'unable to attend': " + e.message);
+    btn.disabled = false;
+    btn.textContent = "Submit";
+  }
+}
+
+/* ---------------- Static reference content ---------------- */
+
+const MARKET_HOST_CONTENT = `
+  <h2>Market Host — This Week & Game Day</h2>
+  <h3>Weekly cadence</h3>
+  <ul>
+    <li>Attend your weekly check-in with Audrey (sometimes Gerardo/Meghan).</li>
+    <li>After the check-in, post a recap of action items in your market Slack channel.</li>
+    <li>End-of-week update in Slack: what you did, what's blocked, what's next — a few bullets, not a report.</li>
+    <li>Track your hours as you go — don't reconstruct them at month-end. Submit your monthly invoice to Audrey and Gerardo.</li>
+    <li>Respond to Slack within 24 hours on business days; use WhatsApp for anything urgent.</li>
+  </ul>
+  <h3>Game day</h3>
+  <ul>
+    <li>Be the on-field liaison between players and the referee.</li>
+    <li>Route player questions using the table below rather than answering everything yourself.</li>
+    <li>Coordinate jersey distribution and gear setup as needed.</li>
+  </ul>
+  <h3>If a referee doesn't show / all referees are unavailable</h3>
+  <ol>
+    <li>Call facilities in the area to see if they have any referee contacts who can step in last-minute.</li>
+    <li>Ask in the Captains chat, All Players chat, and any pickup chats if someone in the community can referee.</li>
+    <li>If you can ref, step in yourself.</li>
+    <li>Ask captains if they're okay with self-reffing for the week.</li>
+    <li>If all else fails, offer the field up for a scrimmage instead and shift that week's games back.</li>
+  </ol>
+`;
+
+const JERSEY_HANDOUT_INFO = `
+  <h3>Jersey Handout</h3>
+  <ul>
+    <li>Hand the jersey bag to each team captain and don't let go until you get a verbal confirmation — say something like: <em>"These are all your jerseys for the season, including for anyone not here today or who may miss weeks. You're the captain, these are your responsibility — bring them back each week and only give them to your rostered teammates."</em></li>
+    <li>Ask them if they know what size goalie jersey they need. If they do, hand them that size. If they do not, ask them to return back to you once they do know to pick up the goalie jersey.</li>
+    <li>Mention that sizing is mixed and ask them to distribute across the team.
+      <ul>
+        <li>If anyone on their team needs a size larger than provided, ask them first to do their best with the sizes we have provided and if they still need a larger size, note down the team name, player name, jersey color, and size needed.</li>
+        <li>Ask them to return a jersey from the pack that is not needed in exchange for the larger size. Give any returned jerseys to the Market Host, who will put them in storage.</li>
+        <li>Send a message in the Ref Ops chat at the end of the night, tagging Audrey and Gerardo, with the list of jerseys needed.</li>
+      </ul>
+    </li>
+    <li>This is especially important to say explicitly to free agent teams.</li>
+  </ul>
+`;
+
+const CENTER_CIRCLE_SCRIPT = `
+  <h3>Center Circle Script (deliver before kickoff of each game)</h3>
+  <p><strong>Welcome</strong> — Welcome everyone! Thank you for playing with [Market] Footy! You're all part of building this community.</p>
+  <p><strong>Intro</strong> — I'm [Your Name] — Culture Captain. I'm here to make sure everyone feels welcome and to help answer any questions you may have.</p>
+  <p><strong>Community</strong> — We are trying to do more than just build a soccer league, we are building a community. After games, introduce yourself to people on other teams [If there is a bar partner] and get to know each other at [bar partner], our bar partner right down the street. Keep it friendly and respectful.</p>
+  <p><strong>Key rules</strong> — No slide tackling (goalies only, in the box). Jerseys required (-1 goal if not worn). Shin guards required. No watches unless covered. Minimum 2 women on the field.</p>
+  <p><strong>Subs (regular season only)</strong> — From Footy teams only, no outside players. Max: full team + 1 sub. Must be registered players.</p>
+  <p><strong>Communication</strong> — Use the incident form in chats for any issues.</p>
+  <p><strong>Close</strong> — Treat everyone — teammates, opponents, and the referee — with kindness and respect.</p>
+`;
+
+// Shown on-demand from the Resources card (Week 1 Info button) — combines the
+// jersey handout guidance with the Center Circle script so both are in one
+// place for a captain prepping for Week 1. The Center Circle script is also
+// surfaced separately via TODO_DETAILS below whenever that week's to-do list
+// includes a matching task.
+const WEEK1_INFO_CONTENT = `
+  ${JERSEY_HANDOUT_INFO}
+  ${CENTER_CIRCLE_SCRIPT}
+`;
+
+// Seasonal reference content that should only appear when there's a matching
+// to-do that week, rather than being visible all the time (per Audrey — the
+// old always-on "This Week & Game Day" section created clutter most weeks).
+// Add an entry here + a matching Asana task title for anything else from
+// WEEK1_DRAFT / CULTURE_CAPTAIN_CONTENT you want surfaced the same way.
+const TODO_DETAILS = [
+  { match: "center circle", label: "View script", html: CENTER_CIRCLE_SCRIPT },
+];
+
+const WEEK1_DRAFT = `
+  <div class="draft-flag">DRAFT — this Week 1 checklist doesn't officially exist yet (it's on Audrey/Gerardo's to-do list per the July 21 Expansion Market Sync notes). Synthesized from the role doc, the Center Circle script, and meeting notes — please correct anything wrong before treating it as official.</div>
+  <h3>Week 1 Checklist (Culture Captain)</h3>
+  <p><strong>Before kickoff</strong></p>
+  <ul>
+    <li>Confirm the referee is on-site before the scheduled start. If not, follow the no-show steps (see Market Host tab, or ask your Market Host) — self-reffing is a last resort, and flag it to your Market Host + ref ops chat right away.</li>
+    <li>Confirm jerseys are on hand / players know the jersey requirement.</li>
+    <li>Have the incident report link ready to share if needed.</li>
+  </ul>
+  <p><strong>At center circle</strong></p>
+  <ul>
+    <li>Deliver the Center Circle welcome script — introduce yourself, set the tone, cover key rules and subs policy.</li>
+    <li>Call out that it's a new season and everyone is helping build the community.</li>
+  </ul>
+  <p><strong>During the game</strong></p>
+  <ul>
+    <li>Specifically identify free agents and make sure they know their team and who to ask for help.</li>
+    <li>Stay a neutral, visible presence near any tension — you're there to de-escalate, not officiate.</li>
+    <li>Report anything worth flagging (missing ref, injury, conflict) in the ref ops chat right away, not after the fact.</li>
+  </ul>
+  <p><strong>After the game</strong></p>
+  <ul>
+    <li>Take a few photos for the season's content and drop them in your market's photo folder (see Resources above).</li>
+    <li>Encourage the post-game social spot if there is one.</li>
+    <li>Send Audrey / your Market Host a quick note on how week 1 went — anything to fix before week 2.</li>
+  </ul>
+`;
+
+const CULTURE_CAPTAIN_CONTENT = `
+  <h2>Culture Captain — This Week & Game Day</h2>
+  <h3>Weekly cadence</h3>
+  <ul>
+    <li>Stay active in the Captains chat — encourage conversation, redirect relevant DMs into the group.</li>
+    <li>Actively welcome new players and free agents; make sure free agents feel supported on their team.</li>
+    <li>Capture a bit of content (photo/video) most weeks — drop it in your market's photo folder (see Resources above).</li>
+  </ul>
+  ${CENTER_CIRCLE_SCRIPT}
+  ${WEEK1_DRAFT}
+  <h3>On-field role</h3>
+  <ul>
+    <li>Neutral presence — help de-escalate tension, you are not making referee-style calls.</li>
+    <li>Help communicate the rules so teams understand how the league runs.</li>
+    <li>Raise awareness of the incident report system; give CX context when something comes up. You don't decide discipline — Fede/Andrew do.</li>
+  </ul>
+`;
+
+function renderRoleContent() {
+  // Market Host keeps its always-on reference card, unchanged. Culture
+  // Captain's old always-on "This Week & Game Day" card is retired — that
+  // content now only surfaces via matching to-dos (see TODO_DETAILS above),
+  // so it doesn't clutter the view in weeks it isn't relevant.
+  const section = document.getElementById("roleContent");
+  if (state.role === "MH") {
+    section.innerHTML = MARKET_HOST_CONTENT;
+    section.style.display = "block";
+  } else {
+    section.innerHTML = "";
+    section.style.display = "none";
+  }
+}
+
+function refreshAll() {
+  renderRoleContent();
+  renderLeagueSwitcher();
+  renderStatus();
+  renderTodos();
+  renderResources();
+  renderClockSection();
+}
+
+/* ---------------- Sign-in flow (Culture Captain) ---------------- */
+
+function showSigninGate() {
+  updateSigninCardLabels();
+  document.getElementById("signinCard").style.display = "block";
+  document.getElementById("mainContent").style.display = "none";
+  document.getElementById("adminContent").style.display = "none";
+  document.getElementById("signedInBar").style.display = "none";
+  document.getElementById("marketSelect").style.display = "none";
+  document.getElementById("leagueSelect").style.display = "none";
+}
+
+function showMainContent() {
+  document.getElementById("signinCard").style.display = "none";
+  document.getElementById("adminContent").style.display = "none";
+  document.getElementById("mainContent").style.display = "block";
+}
+
+function showAdminContent() {
+  document.getElementById("signinCard").style.display = "none";
+  document.getElementById("mainContent").style.display = "none";
+  document.getElementById("adminContent").style.display = "block";
+}
+
+async function attemptSignin() {
+  const name = document.getElementById("signinName").value.trim();
+  const market = document.getElementById("signinMarket").value;
+  const pin = document.getElementById("signinPin").value.trim();
+  const errBox = document.getElementById("signinError");
+  errBox.textContent = "";
+  if (!name || !market || !pin) {
+    errBox.textContent = "Please fill in your name, market, and PIN.";
+    return;
+  }
+  const btn = document.getElementById("signinBtn");
+  btn.disabled = true;
+  btn.textContent = "Checking...";
+  try {
+    const data = await apiPost("/auth/verify", { name, market, pin });
+    // Not admin, and this Airtable row's Role explicitly disagrees with the
+    // tab they signed in on (e.g. a Market Host trying the Culture Captain
+    // tab) — steer them to the right tab rather than showing them a flow that
+    // doesn't match their actual role. Rows without a Role set yet (older
+    // data) are let through rather than blocked.
+    const expectedRoleLabel = state.role === "CC" ? "Culture Captain" : "Market Host";
+    if (!data.captain.admin && data.captain.role && data.captain.role !== expectedRoleLabel) {
+      errBox.textContent = `This looks like a ${data.captain.role} account — switch to the "${data.captain.role}" tab above to sign in.`;
+      btn.disabled = false;
+      btn.textContent = "Sign In";
+      return;
+    }
+    state.captain = data.captain;
+    state.isAdmin = !!data.captain.admin;
+    state.captainLeagues = parseCaptainLeagues(data.captain.league);
+    state.activeLeague = state.captainLeagues[0] || null;
+    localStorage.setItem("footy_cc_captain", JSON.stringify(data.captain));
+    if (state.activeLeague) localStorage.setItem("footy_cc_active_league", state.activeLeague);
+    else localStorage.removeItem("footy_cc_active_league"); // clear any stale value from a previous captain
+    document.getElementById("signedInBar").style.display = "flex";
+    document.getElementById("signedInLabel").textContent =
+      `Signed in as ${data.captain.name} · ${data.captain.market}`;
+    if (state.isAdmin) {
+      showAdminContent();
+      await loadAdminData();
+      renderAdminOverview();
+    } else {
+      showMainContent();
+      if (state.role === "MH") document.getElementById("leagueSelect").style.display = "block";
+      populateLeagues();
+      refreshAll();
+    }
+  } catch (e) {
+    errBox.textContent = e.message || "Couldn't verify those details — check with Audrey if this keeps happening.";
+  }
+  btn.disabled = false;
+  btn.textContent = "Sign In";
+}
+
+async function signOut() {
+  // Don't silently orphan an open shift — clock out first if one is running.
+  if (state.attendanceRecordId) {
+    const ok = confirm("You're still clocked in. Clock out now before signing out?");
+    if (ok) {
+      try {
+        await apiPost("/attendance/clockout", { recordId: state.attendanceRecordId });
+      } catch (e) {
+        showError("Couldn't clock out automatically: " + e.message + " — please clock out, then sign out again.");
+        return; // stay signed in so the record ID isn't lost
+      }
+    } else {
+      return; // captain chose to stay signed in / handle it themselves
+    }
+  }
+  state.captain = null;
+  state.captainLeagues = [];
+  state.activeLeague = null;
+  state.attendanceRecordId = null;
+  state.roleDescOpen = false;
+  state.week1InfoOpen = false;
+  state.cultureGuideOpen = false;
+  state.unableSubmitted = false;
+  state.isAdmin = false;
+  state.adminRoster = [];
+  state.adminAttendance = [];
+  state.adminMarket = null;
+  state.adminLeague = null;
+  state.adminCaptain = null;
+  state.adminAttendanceRecordId = null;
+  state.adminUnableSubmitted = false;
+  localStorage.removeItem("footy_cc_captain");
+  localStorage.removeItem("footy_cc_attendance");
+  localStorage.removeItem("footy_cc_active_league");
+  document.getElementById("roleDescPanel").style.display = "none";
+  document.getElementById("roleDescToggle").textContent = "Role Description";
+  document.getElementById("week1Panel").style.display = "none";
+  document.getElementById("week1Toggle").textContent = "Week 1 Info";
+  document.getElementById("cultureGuidePanel").style.display = "none";
+  document.getElementById("cultureGuideToggle").textContent = "Culture Guide";
+  document.getElementById("signinName").value = "";
+  document.getElementById("signinPin").value = "";
+  showSigninGate();
+}
+
+// Culture Captain and Market Host now both sign in (name + market + PIN)
+// the same way — this just decides which tab's identity (if any) is
+// currently valid, and shows the right screen. A captain signed in under one
+// role tab doesn't "leak" into the other tab's content; switching tabs shows
+// that tab's own sign-in gate unless its own role's identity is on file.
+function onRoleChange() {
+  state.role = document.getElementById("roleSelect").value;
+  const expectedRoleLabel = state.role === "CC" ? "Culture Captain" : "Market Host";
+  document.getElementById("marketSelect").style.display = "none";
+  document.getElementById("leagueSelect").style.display = "none";
+
+  const signedInForThisTab = state.captain &&
+    (state.isAdmin || !state.captain.role || state.captain.role === expectedRoleLabel);
+
+  if (signedInForThisTab) {
+    document.getElementById("signedInBar").style.display = "flex";
+    document.getElementById("signedInLabel").textContent =
+      `Signed in as ${state.captain.name} · ${state.captain.market}`;
+    if (state.isAdmin) {
+      showAdminContent();
+      loadAdminData().then(renderAdminOverview);
+    } else {
+      showMainContent();
+      if (state.role === "MH") document.getElementById("leagueSelect").style.display = "block";
+      populateLeagues();
+      refreshAll();
+    }
+  } else {
+    document.getElementById("signedInBar").style.display = "none";
+    showSigninGate();
+  }
+}
+
+async function init() {
+  document.getElementById("todayLine").textContent = "Today: " + new Date().toDateString();
+  populateMarketSelect();
+  updateSigninCardLabels();
+
+  if (CONFIG.PROXY_URL.startsWith("PASTE_")) {
+    showError("Worker URL isn't set yet — deploy the Cloudflare Worker and edit CONFIG.PROXY_URL in this file. See SETUP-INSTRUCTIONS.md.");
+  }
+
+  try {
+    await loadLeagues();
+    await loadDashboardTodos();
+  } catch (e) {
+    showError("Couldn't load data from the proxy: " + e.message);
+  }
+
+  state.todos = await loadAsanaTasks();
+
+  document.getElementById("roleSelect").addEventListener("change", onRoleChange);
+  document.getElementById("marketSelect").addEventListener("change", () => { populateLeagues(); refreshAll(); });
+  document.getElementById("leagueSelect").addEventListener("change", refreshAll);
+  document.getElementById("signinBtn").addEventListener("click", attemptSignin);
+  document.getElementById("signOutBtn").addEventListener("click", signOut);
+  document.getElementById("clockBtn").addEventListener("click", onClockClick);
+  document.getElementById("captainLeagueSelect").addEventListener("change", onCaptainLeagueSwitch);
+  document.getElementById("roleDescToggle").addEventListener("click", toggleRoleDescription);
+  document.getElementById("week1Toggle").addEventListener("click", toggleWeek1Info);
+  document.getElementById("cultureGuideToggle").addEventListener("click", toggleCultureGuide);
+  document.getElementById("scheduleToggle").addEventListener("click", toggleSchedule);
+  document.getElementById("unableCheckbox").addEventListener("change", onUnableCheckboxChange);
+  document.getElementById("unableSubmitBtn").addEventListener("click", onUnableSubmit);
+  document.getElementById("adminDrilldownClose").addEventListener("click", closeAdminDrilldown);
+  document.getElementById("adminCaptainSelect").addEventListener("change", onAdminCaptainSelectChange);
+  document.getElementById("adminClockBtn").addEventListener("click", onAdminClockClick);
+  document.getElementById("adminUnableCheckbox").addEventListener("change", onAdminUnableCheckboxChange);
+  document.getElementById("adminUnableSubmitBtn").addEventListener("click", onAdminUnableSubmit);
+  document.getElementById("handbookToggle").addEventListener("click", toggleHandbook);
+  document.getElementById("handbookAskBtn").addEventListener("click", onHandbookAsk);
+  document.getElementById("handbookQuestion").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") onHandbookAsk();
+  });
+
+  // Restore a signed-in captain / open shift across page reloads (this is a real
+  // externally-hosted static page, not an in-conversation preview, so localStorage is fine here).
+  const savedCaptain = localStorage.getItem("footy_cc_captain");
+  const savedAttendance = localStorage.getItem("footy_cc_attendance");
+  const savedActiveLeague = localStorage.getItem("footy_cc_active_league");
+  if (savedCaptain) {
+    try {
+      state.captain = JSON.parse(savedCaptain);
+      state.isAdmin = !!state.captain.admin;
+      state.captainLeagues = parseCaptainLeagues(state.captain.league);
+      state.activeLeague = (savedActiveLeague && state.captainLeagues.includes(savedActiveLeague))
+        ? savedActiveLeague
+        : (state.captainLeagues[0] || null);
+      // Derive the role tab from the restored identity's actual Role, not a
+      // hardcoded "CC" — this now also restores Market Host sessions
+      // correctly. Older cached sessions (saved before the Role field
+      // existed) won't have this, so default to CC for those.
+      state.role = state.captain.role === "Market Host" ? "MH" : "CC";
+      document.getElementById("roleSelect").value = state.role; // keep the picker in sync with the restored view
+      if (savedAttendance) state.attendanceRecordId = savedAttendance;
+      document.getElementById("signedInBar").style.display = "flex";
+      document.getElementById("signedInLabel").textContent =
+        `Signed in as ${state.captain.name} · ${state.captain.market}`;
+      if (state.isAdmin) {
+        showAdminContent();
+        loadAdminData().then(renderAdminOverview);
+      } else {
+        showMainContent();
+        if (state.role === "MH") document.getElementById("leagueSelect").style.display = "block";
+        populateLeagues();
+        refreshAll();
+      }
+      return;
+    } catch (e) { /* fall through to sign-in gate */ }
+  }
+
+  onRoleChange(); // shows the appropriate sign-in gate for whichever role tab is selected
+}
+
+init();
+</script>
+</body>
+</html>
