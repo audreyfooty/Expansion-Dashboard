@@ -203,6 +203,36 @@
   }
   .unable-submit-btn:disabled { opacity: 0.6; cursor: default; }
   .unable-confirmed { margin-top: 10px; font-size: 13.5px; color: var(--green); font-weight: 600; }
+  .todo-unable-badge {
+    display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: #fff4e5;
+    border: 1px solid #f0c98a; color: #9a6a1f; font-size: 11.5px; font-weight: 600; white-space: nowrap;
+  }
+
+  /* ---- outreach ---- */
+  .outreach-log-btn {
+    padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); background: white;
+    color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  }
+  .outreach-log-btn.logged { border-color: var(--green); color: var(--green); }
+  .outreach-modal-backdrop {
+    position: fixed; inset: 0; background: rgba(20, 20, 20, 0.45); display: flex; align-items: center;
+    justify-content: center; z-index: 1000; padding: 16px;
+  }
+  .outreach-modal {
+    background: white; border-radius: 12px; padding: 20px; max-width: 420px; width: 100%;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.25);
+  }
+  .outreach-modal-field { margin-top: 14px; }
+  .outreach-modal-field label { display: block; font-size: 13.5px; font-weight: 600; margin-bottom: 6px; }
+  .outreach-modal-radios { display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 400; }
+  .outreach-modal-radios label { display: flex; align-items: center; gap: 8px; font-weight: 400; cursor: pointer; }
+  .outreach-modal textarea {
+    width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font: inherit;
+    resize: vertical; box-sizing: border-box;
+  }
+  .outreach-modal-error { margin-top: 12px; color: var(--orange); font-size: 13px; font-weight: 600; }
+  .outreach-modal-saved { margin-top: 12px; color: var(--green); font-size: 13px; font-weight: 600; }
+  .outreach-modal-actions { margin-top: 18px; display: flex; justify-content: flex-end; gap: 10px; }
 
   /* ---- admin overview ---- */
   .admin-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
@@ -328,6 +358,11 @@
       <div id="todoList" class="empty">Loading tasks from Asana…</div>
     </section>
 
+    <section class="card" id="outreachSection" style="display:none;">
+      <h2>Outreach Tasks</h2>
+      <div id="outreachList" class="empty">Loading…</div>
+    </section>
+
     <section class="card" id="resourcesSection" style="display:none;">
       <h2>Resources</h2>
       <div class="resource-btn-row" id="resourceBtnRowTop">
@@ -400,6 +435,12 @@
       <div id="adminOverviewTable" class="empty">Loading…</div>
     </section>
 
+    <section class="card" id="adminOutreachSection">
+      <h2>Registration Outreach Responses</h2>
+      <div class="muted" style="margin-top:4px; margin-bottom:10px;">Every captain/free-agent check-in a Culture Captain has logged, across all markets. "Re-registered" only flips once the person actually shows up signed up again — not just from a "Yes" response.</div>
+      <div id="adminOutreachTable" class="empty">Loading…</div>
+    </section>
+
     <section class="card" id="adminDrilldownSection" style="display:none;">
       <button class="role-desc-toggle" id="adminDrilldownClose" style="margin-bottom:12px;">← Back to overview</button>
       <h2 id="adminDrilldownTitle">Market</h2>
@@ -432,6 +473,38 @@
     </section>
   </div>
 </main>
+
+<!-- Registration outreach modal — opened from a "Log response" button on any
+     to-do tagged [Outreach] (see buildTodoRow). Shared by both the captain's
+     own to-do list and the admin drilldown's "act as" list. -->
+<div id="outreachModalBackdrop" class="outreach-modal-backdrop" style="display:none;">
+  <div class="outreach-modal">
+    <h3 id="outreachModalTitle">Log response</h3>
+    <div class="muted" id="outreachModalSubtitle" style="margin-bottom:14px;"></div>
+
+    <div class="outreach-modal-field">
+      <label>Are they signing up again?</label>
+      <div class="outreach-modal-radios">
+        <label><input type="radio" name="outreachResponse" value="Yes" /> Yes</label>
+        <label><input type="radio" name="outreachResponse" value="No" /> No</label>
+        <label><input type="radio" name="outreachResponse" value="Hesitant" /> Hesitant / not sure yet</label>
+      </div>
+    </div>
+
+    <div class="outreach-modal-field" id="outreachReasonField" style="display:none;">
+      <label for="outreachReasonText">Why not / what are they hesitant about?</label>
+      <textarea id="outreachReasonText" rows="3" placeholder="Optional, but helpful for Audrey"></textarea>
+    </div>
+
+    <div class="outreach-modal-error" id="outreachModalError" style="display:none;"></div>
+    <div class="outreach-modal-saved" id="outreachModalSaved" style="display:none;">Saved — thanks for logging this.</div>
+
+    <div class="outreach-modal-actions">
+      <button type="button" class="role-desc-toggle" id="outreachModalCancel">Cancel</button>
+      <button type="button" class="unable-submit-btn" id="outreachModalSubmit">Save response</button>
+    </div>
+  </div>
+</div>
 
 <footer>Built for The Footy League · data from Airtable + Asana</footer>
 
@@ -484,6 +557,8 @@ const state = {
   scheduleOpen: false,
   scheduleLeagueName: null, // which league's games are currently loaded in the schedule panel, so a league switch resets it
   unableSubmitted: false, // whether "Unable to attend" has been reported this session
+  nextGameDateStr: null, // "YYYY-MM-DD" of the next scheduled game for the active league (from /schedule/next), sent along with "Unable to Attend" so the flag knows which week it's for
+  unableWeeks: [], // [{ market, league, gameDate }] from /attendance/unable-weeks — every flagged "Unable to Attend" week on file, used to hide that week's to-dos
 
   // ---- admin ("omnipresent") view ----
   isAdmin: false,
@@ -494,6 +569,10 @@ const state = {
   adminCaptain: null,     // roster entry currently being "acted as"
   adminAttendanceRecordId: null, // open shift record id for adminCaptain, if any
   adminUnableSubmitted: false,
+  adminOutreach: [], // "Registration Outreach" rows, for the admin report table
+
+  // ---- registration outreach modal (captain-facing) ----
+  outreachModalTask: null, // the outreach task currently open in the modal, if any
 };
 
 function parseCaptainLeagues(leagueField) {
@@ -554,6 +633,46 @@ async function loadAsanaTasks() {
     console.error(e);
     return null; // signals failure vs. empty
   }
+}
+
+async function loadUnableWeeks() {
+  try {
+    const data = await apiGet("/attendance/unable-weeks");
+    state.unableWeeks = data.unableWeeks || [];
+  } catch (e) {
+    console.error(e);
+    state.unableWeeks = []; // best-effort — if this fails, nothing gets hidden, nothing breaks
+  }
+}
+
+// LOOKAHEAD_DAYS mirrors the Worker's /tasks visibility window (see
+// asana-proxy-worker.js) — a flagged week's to-dos are the ones due within
+// that same window ending on the flagged game date, so a task due a few days
+// before the game (e.g. the playoff champagne reminder, due 4 days out)
+// still gets caught, not just tasks due exactly on the game date itself.
+const UNABLE_WEEK_LOOKBACK_DAYS = 6;
+
+// True if this task's due date falls within a flagged "Unable to Attend"
+// week for its own tagged market/league — i.e. it should disappear from that
+// captain's own to-do list. Only tasks tagged with a specific league can
+// match (a market-wide task with no league tag, e.g. a Market Host task,
+// is never hidden by one league's captain flagging themselves unable).
+// Matches league names the same fuzzy way the rest of the dashboard
+// cross-references leagues (Asana tags vs. Airtable names aren't always
+// character-identical).
+function isTaskInUnableWeek(t, market) {
+  // Outreach tasks (registration check-ins) aren't about a specific game
+  // week, so a captain flagging themselves unable to attend shouldn't hide
+  // or flag these — they're unrelated to whether that week's game happens.
+  if (t.kind === "Outreach") return false;
+  if (!t.due_on || !t.league) return false;
+  const dueTime = new Date(t.due_on + "T00:00:00Z").getTime();
+  return state.unableWeeks.some((w) => {
+    if (!w.gameDate || w.market !== market || !leagueNamesMatch(w.league, t.league)) return false;
+    const gameTime = new Date(w.gameDate + "T00:00:00Z").getTime();
+    const windowStart = gameTime - UNABLE_WEEK_LOOKBACK_DAYS * 86400000;
+    return dueTime >= windowStart && dueTime <= gameTime;
+  });
 }
 
 function leagueNamesMatch(a, b) {
@@ -752,23 +871,42 @@ function findTodoDetail(title) {
   return TODO_DETAILS.find(d => t.includes(d.match)) || null;
 }
 
-function buildTodoRow(t, onCheckFn) {
+function buildTodoRow(t, onCheckFn, opts) {
   const row = document.createElement("div");
   row.className = "todo-item";
   const detail = findTodoDetail(t.title);
+  // opts.flagged: admin-drilldown-only — the captain flagged "Unable to
+  // Attend" for the week this task is due. The captain's own to-do list
+  // never sets this; it just hides the task instead (see renderTodos).
+  const flaggedBadge = opts?.flagged
+    ? `<span class="todo-unable-badge" title="Captain flagged 'Unable to Attend' for this week">Unable to attend</span>`
+    : "";
+  // "Outreach"-kind tasks (registration check-ins) don't get a plain
+  // checkbox — checking a box would read as "done", but this task only
+  // actually clears once the person re-registers (see resolveOutreachTasks
+  // in the Worker). Instead they get a button that opens a small modal to
+  // log a Yes/No/Hesitant response, which just records data without
+  // completing or hiding the task.
+  const isOutreach = t.kind === "Outreach";
   row.innerHTML = `
     <div class="todo-row">
       <div class="todo-main">
-        <input type="checkbox" class="todo-check" />
+        ${isOutreach ? "" : `<input type="checkbox" class="todo-check" />`}
         <span class="todo-title">${t.url ? `<a href="${t.url}" target="_blank">${escapeHtml(t.title)}</a>` : escapeHtml(t.title)}</span>
       </div>
-      <span class="todo-due">${formatDueDate(t.due_on)}</span>
+      ${isOutreach
+        ? `<button type="button" class="outreach-log-btn">Log response</button>`
+        : `<span class="todo-due">${formatDueDate(t.due_on)}${flaggedBadge}</span>`}
     </div>
     ${detail ? `<button type="button" class="todo-detail-toggle">${escapeHtml(detail.label)}</button><div class="todo-detail-panel" style="display:none;">${detail.html}</div>` : ""}
   `;
-  row.querySelector(".todo-check").addEventListener("change", (e) => {
-    if (e.target.checked) onCheckFn(t.gid, row);
-  });
+  if (isOutreach) {
+    row.querySelector(".outreach-log-btn").addEventListener("click", () => openOutreachModal(t));
+  } else {
+    row.querySelector(".todo-check").addEventListener("change", (e) => {
+      if (e.target.checked) onCheckFn(t.gid, row);
+    });
+  }
   const toggleBtn = row.querySelector(".todo-detail-toggle");
   if (toggleBtn) {
     toggleBtn.addEventListener("click", () => {
@@ -779,6 +917,64 @@ function buildTodoRow(t, onCheckFn) {
     });
   }
   return row;
+}
+
+/* ---------------- Registration outreach modal ---------------- */
+
+function openOutreachModal(task) {
+  state.outreachModalTask = task;
+  document.getElementById("outreachModalTitle").textContent = task.title;
+  document.getElementById("outreachModalSubtitle").textContent =
+    (task.notes || "").split("\n")[0] || "Log whether they're returning next season.";
+  document.querySelectorAll('input[name="outreachResponse"]').forEach(r => { r.checked = false; });
+  document.getElementById("outreachReasonField").style.display = "none";
+  document.getElementById("outreachReasonText").value = "";
+  document.getElementById("outreachModalError").style.display = "none";
+  document.getElementById("outreachModalSaved").style.display = "none";
+  document.getElementById("outreachModalSubmit").disabled = false;
+  document.getElementById("outreachModalSubmit").textContent = "Save response";
+  document.getElementById("outreachModalBackdrop").style.display = "flex";
+}
+
+function closeOutreachModal() {
+  document.getElementById("outreachModalBackdrop").style.display = "none";
+  state.outreachModalTask = null;
+}
+
+function onOutreachResponseChange() {
+  const selected = document.querySelector('input[name="outreachResponse"]:checked');
+  const showReason = selected && (selected.value === "No" || selected.value === "Hesitant");
+  document.getElementById("outreachReasonField").style.display = showReason ? "block" : "none";
+}
+
+async function onOutreachModalSubmit() {
+  const task = state.outreachModalTask;
+  if (!task) return;
+  const selected = document.querySelector('input[name="outreachResponse"]:checked');
+  const errBox = document.getElementById("outreachModalError");
+  errBox.style.display = "none";
+  if (!selected) {
+    errBox.textContent = "Pick an answer first.";
+    errBox.style.display = "block";
+    return;
+  }
+  const btn = document.getElementById("outreachModalSubmit");
+  btn.disabled = true;
+  btn.textContent = "Saving...";
+  try {
+    await apiPost("/outreach/respond", {
+      gid: task.gid,
+      response: selected.value,
+      notes: document.getElementById("outreachReasonText").value.trim(),
+    });
+    document.getElementById("outreachModalSaved").style.display = "block";
+    setTimeout(closeOutreachModal, 900);
+  } catch (e) {
+    errBox.textContent = "Couldn't save that: " + e.message;
+    errBox.style.display = "block";
+    btn.disabled = false;
+    btn.textContent = "Save response";
+  }
 }
 
 async function onTodoCheck(gid, rowEl) {
@@ -806,9 +1002,12 @@ function renderTodos() {
   const role = state.role;
   const market = currentMarket();
   const list = document.getElementById("todoList");
+  const outreachSection = document.getElementById("outreachSection");
+  const outreachList = document.getElementById("outreachList");
 
   if (state.todos === null) {
     list.innerHTML = `<div class="empty">Couldn't reach the proxy. Check CONFIG.PROXY_URL, or that the Worker is deployed.</div>`;
+    outreachSection.style.display = "none";
     return;
   }
   // Prefer whichever league is currently active/selected — same resolution
@@ -820,14 +1019,39 @@ function renderTodos() {
   const viewingLeague = state.activeLeague || state.resolvedLeagueName;
   const filtered = state.todos.filter(t =>
     (!t.market || t.market === market) && (!t.role || t.role === role || t.role === "Both") &&
-    (!viewingLeague || !t.league || leagueNamesMatch(t.league, viewingLeague))
+    (!viewingLeague || !t.league || leagueNamesMatch(t.league, viewingLeague)) &&
+    // If this captain flagged "Unable to Attend" for the week this task is
+    // due, don't make them click it away themselves — it just disappears.
+    !isTaskInUnableWeek(t, market)
   );
-  if (filtered.length === 0) {
-    list.innerHTML = `<div class="empty">No open to-dos for ${market || "your market"} right now.</div>`;
-    return;
+  // Registration Outreach tasks get their own card, separate from the regular
+  // to-do list — they're a different kind of work (log a response via the
+  // modal, not check a box) and Audrey wants them visually distinct rather
+  // than mixed in with ordinary to-dos.
+  const regularTasks = filtered.filter(t => t.kind !== "Outreach");
+  const outreachTasks = filtered.filter(t => t.kind === "Outreach");
+
+  if (regularTasks.length === 0) {
+    list.className = "empty";
+    list.innerHTML = `No open to-dos for ${market || "your market"} right now.`;
+  } else {
+    list.className = "";
+    list.innerHTML = "";
+    regularTasks.forEach(t => list.appendChild(buildTodoRow(t, onTodoCheck)));
   }
-  list.innerHTML = "";
-  filtered.forEach(t => list.appendChild(buildTodoRow(t, onTodoCheck)));
+
+  // Hide the whole card when there's nothing to show — most captains won't
+  // have any outreach tasks, so an empty "Outreach Tasks" card would just be
+  // clutter for them.
+  if (outreachTasks.length === 0) {
+    outreachSection.style.display = "none";
+    outreachList.innerHTML = "";
+  } else {
+    outreachSection.style.display = "block";
+    outreachList.className = "";
+    outreachList.innerHTML = "";
+    outreachTasks.forEach(t => outreachList.appendChild(buildTodoRow(t, onTodoCheck)));
+  }
 }
 
 function renderResources() {
@@ -1086,6 +1310,7 @@ function renderClockSection() {
 async function loadNextShift() {
   const line = document.getElementById("nextShiftLine");
   if (!line) return;
+  state.nextGameDateStr = null;
   if (state.role !== "CC" || !state.captain) { line.style.display = "none"; return; }
   const league = state.activeLeague || state.resolvedLeagueName || "";
   if (!league) { line.style.display = "none"; return; }
@@ -1098,6 +1323,10 @@ async function loadNextShift() {
       line.textContent = "No upcoming scheduled game found yet for this league.";
       return;
     }
+    // Stashed so "Unable to Attend" can tell the Worker which week's game
+    // this flag is for (see onUnableSubmit) — without re-fetching /schedule/next
+    // itself. g.startDate is already "YYYY-MM-DD" from the Worker.
+    state.nextGameDateStr = g.startDate || null;
     const when = g.startDate ? (g.startTime ? `${g.startDate} at ${g.startTime}` : g.startDate) : "date TBD";
     line.innerHTML = `Next scheduled game: <strong>${escapeHtml(when)}</strong>` +
       (g.locationName ? ` — ${escapeHtml(g.locationName)}` : "");
@@ -1155,9 +1384,12 @@ async function onUnableSubmit() {
       captainName: state.captain.name,
       market: state.captain.market,
       league,
+      gameDate: state.nextGameDateStr || undefined,
     });
     state.unableSubmitted = true;
     renderUnableSection();
+    await loadUnableWeeks(); // refresh so that week's to-dos disappear immediately
+    renderTodos();
   } catch (e) {
     showError("Couldn't record 'unable to attend': " + e.message);
     btn.disabled = false;
@@ -1198,17 +1430,60 @@ async function onClockClick() {
 
 async function loadAdminData() {
   try {
-    const [rosterData, attendanceData] = await Promise.all([
+    const [rosterData, attendanceData, outreachData] = await Promise.all([
       apiGet("/admin/roster"),
       apiGet("/admin/attendance"),
+      apiGet("/admin/outreach"),
     ]);
     state.adminRoster = rosterData.roster || [];
     state.adminAttendance = attendanceData.attendance || [];
+    state.adminOutreach = outreachData.outreach || [];
   } catch (e) {
     showError("Couldn't load admin data: " + e.message);
     state.adminRoster = [];
     state.adminAttendance = [];
+    state.adminOutreach = [];
   }
+}
+
+// Renders everything on the admin landing page (overview table + outreach
+// report) in one call — used at every point admin data gets (re)loaded, so
+// those two call sites don't have to be kept in sync by hand.
+function renderAdminAll() {
+  renderAdminOverview();
+  renderAdminOutreach();
+}
+
+function renderAdminOutreach() {
+  const box = document.getElementById("adminOutreachTable");
+  if (!box) return;
+  if (!state.adminOutreach || state.adminOutreach.length === 0) {
+    box.innerHTML = `<div class="empty">No registration outreach on file yet.</div>`;
+    return;
+  }
+  // Most recently responded first, so freshly-logged answers surface without
+  // scrolling; rows with no response yet sort to the bottom.
+  const rows = [...state.adminOutreach].sort((a, b) => {
+    if (!a.respondedAt && !b.respondedAt) return 0;
+    if (!a.respondedAt) return 1;
+    if (!b.respondedAt) return -1;
+    return new Date(b.respondedAt) - new Date(a.respondedAt);
+  });
+  box.innerHTML = `
+    <table class="admin-table">
+      <tr><th>Name</th><th>Market / League</th><th>Role</th><th>Response</th><th>Notes</th><th>Status</th></tr>
+      ${rows.map(o => `
+        <tr>
+          <td>${escapeHtml(o.fullName || "?")}</td>
+          <td>${escapeHtml(o.market || "?")} — <span class="muted">${escapeHtml(o.league || "")}</span></td>
+          <td>${escapeHtml(o.role || "")}</td>
+          <td>${o.response ? escapeHtml(o.response) : "<span class=\"muted\">Not logged yet</span>"}</td>
+          <td>${o.responseNotes ? escapeHtml(o.responseNotes) : ""}</td>
+          <td>${o.resolved ? "<span style=\"color: var(--green); font-weight:600;\">Re-registered ✓</span>" : "<span class=\"muted\">Pending</span>"}</td>
+        </tr>
+      `).join("")}
+    </table>
+  `;
 }
 
 function adminOpenShiftsFor(market, league) {
@@ -1263,6 +1538,7 @@ function openAdminDrilldown(market, league) {
   state.adminAttendanceRecordId = null;
   state.adminUnableSubmitted = false;
   document.getElementById("adminOverviewSection").style.display = "none";
+  document.getElementById("adminOutreachSection").style.display = "none";
   document.getElementById("adminDrilldownSection").style.display = "block";
   document.getElementById("adminDrilldownTitle").textContent = `${market} — ${league}`;
   renderAdminTodos();
@@ -1272,6 +1548,7 @@ function openAdminDrilldown(market, league) {
 function closeAdminDrilldown() {
   document.getElementById("adminDrilldownSection").style.display = "none";
   document.getElementById("adminOverviewSection").style.display = "block";
+  document.getElementById("adminOutreachSection").style.display = "block";
   renderAdminOverview();
 }
 
@@ -1315,7 +1592,10 @@ function renderAdminTodos() {
   }
   list.innerHTML = "";
   list.className = "";
-  filtered.forEach(t => list.appendChild(buildTodoRow(t, onAdminTodoCheck)));
+  // Unlike the captain's own view, admin never hides these — a flagged task
+  // stays visible here (with a badge) so nothing looks like it silently fell
+  // through the cracks.
+  filtered.forEach(t => list.appendChild(buildTodoRow(t, onAdminTodoCheck, { flagged: isTaskInUnableWeek(t, state.adminMarket) })));
 }
 
 function populateAdminCaptainSelect() {
@@ -1439,14 +1719,27 @@ async function onAdminUnableSubmit() {
   btn.disabled = true;
   btn.textContent = "Submitting...";
   try {
+    // Look up the next scheduled game for this league at submit time (the
+    // admin drilldown, unlike the captain's own Clock In/Out card, doesn't
+    // keep this loaded already) so the flag records which week it's for.
+    let gameDate;
+    try {
+      const scheduleData = await apiGet(`/schedule/next?league=${encodeURIComponent(state.adminLeague || "")}`);
+      gameDate = scheduleData.nextGame?.startDate || undefined;
+    } catch (e) {
+      gameDate = undefined; // best-effort — still record the flag even if this lookup fails
+    }
     await apiPost("/attendance/unable", {
       captainName: state.adminCaptain.name,
       market: state.adminMarket,
       league: state.adminLeague,
+      gameDate,
     });
     state.adminUnableSubmitted = true;
     await loadAdminData();
+    await loadUnableWeeks();
     renderAdminUnableSection();
+    renderAdminTodos();
   } catch (e) {
     showError("Couldn't record 'unable to attend': " + e.message);
     btn.disabled = false;
@@ -1662,7 +1955,7 @@ async function attemptSignin() {
     if (state.isAdmin) {
       showAdminContent();
       await loadAdminData();
-      renderAdminOverview();
+      renderAdminAll();
     } else {
       showMainContent();
       if (state.role === "MH") document.getElementById("leagueSelect").style.display = "block";
@@ -1699,6 +1992,7 @@ async function signOut() {
   state.week1InfoOpen = false;
   state.cultureGuideOpen = false;
   state.unableSubmitted = false;
+  state.nextGameDateStr = null;
   state.isAdmin = false;
   state.adminRoster = [];
   state.adminAttendance = [];
@@ -1741,7 +2035,7 @@ function onRoleChange() {
       `Signed in as ${state.captain.name} · ${state.captain.market}`;
     if (state.isAdmin) {
       showAdminContent();
-      loadAdminData().then(renderAdminOverview);
+      loadAdminData().then(renderAdminAll);
     } else {
       showMainContent();
       if (state.role === "MH") document.getElementById("leagueSelect").style.display = "block";
@@ -1771,6 +2065,7 @@ async function init() {
   }
 
   state.todos = await loadAsanaTasks();
+  await loadUnableWeeks();
 
   document.getElementById("roleSelect").addEventListener("change", onRoleChange);
   document.getElementById("marketSelect").addEventListener("change", () => { populateLeagues(); refreshAll(); });
@@ -1794,6 +2089,14 @@ async function init() {
   document.getElementById("handbookAskBtn").addEventListener("click", onHandbookAsk);
   document.getElementById("handbookQuestion").addEventListener("keydown", (e) => {
     if (e.key === "Enter") onHandbookAsk();
+  });
+  document.querySelectorAll('input[name="outreachResponse"]').forEach(r => {
+    r.addEventListener("change", onOutreachResponseChange);
+  });
+  document.getElementById("outreachModalCancel").addEventListener("click", closeOutreachModal);
+  document.getElementById("outreachModalSubmit").addEventListener("click", onOutreachModalSubmit);
+  document.getElementById("outreachModalBackdrop").addEventListener("click", (e) => {
+    if (e.target.id === "outreachModalBackdrop") closeOutreachModal(); // click outside the card closes it
   });
 
   // Restore a signed-in captain / open shift across page reloads (this is a real
@@ -1821,7 +2124,7 @@ async function init() {
         `Signed in as ${state.captain.name} · ${state.captain.market}`;
       if (state.isAdmin) {
         showAdminContent();
-        loadAdminData().then(renderAdminOverview);
+        loadAdminData().then(renderAdminAll);
       } else {
         showMainContent();
         if (state.role === "MH") document.getElementById("leagueSelect").style.display = "block";
